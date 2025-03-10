@@ -11,31 +11,27 @@ import cv2
 import time
 from filelock import FileLock
 
-MAX_RETRIES = 5
-RETRY_DELAY = 3
 LOCK_FILE = 'camera.lock'  # Lock file to serialize camera access
 
 
 class Generator:
     def __init__(self):
-        pass
+        self.frame = None
 
-    @staticmethod
-    def take_picture():
+    def take_picture(self):
         """
         Tries to open the camera, capture an image, and release it.
-        Retries if the camera is in use.
+        Uses FileLock for camera resource.
         """
-        for attempt in range(MAX_RETRIES):
-            with FileLock(LOCK_FILE):  # Ensures only one process can access the camera at a time
-                camera = cv2.VideoCapture(0)
+        ret_val = False
 
-                if not camera.isOpened():
-                    print(f"Attempt {attempt + 1}: Camera not available, retrying...")
-                    camera.release()
-                    time.sleep(RETRY_DELAY)
-                    continue  # Try again
+        with FileLock(LOCK_FILE):  # Ensures only one process can access the camera at a time
+            camera = cv2.VideoCapture(0)
 
+            if not camera.isOpened():
+                print(f"Camera not available")
+                camera.release()
+            else:
                 ret, frame = camera.read()  # Only read once
 
                 if ret:
@@ -44,15 +40,16 @@ class Generator:
                     cv2.waitKey(1000)  # Show for 1 second
                     cv2.destroyAllWindows()
                     camera.release()
-                    return
+                    self.frame = frame
+                    ret_val = True
+                else:
+                    print(f"Error: No image found")
 
-                print(f"Error: No image found")
                 camera.release()
-                time.sleep(RETRY_DELAY)
 
-        print(f"Error: Could not access camera after {MAX_RETRIES} attempts.")
+        return ret_val
 
 
 if __name__ == '__main__':
     gen = Generator()
-    gen.take_picture()
+    print(gen.take_picture())
