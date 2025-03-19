@@ -77,28 +77,28 @@ class Generator:
         # XOR the two bit streams for additional randomness
         mixed_bits = [bit_list_gray[i] ^ bit_list_red[i] for i in range(len(bit_list_gray))]
 
-        return self.von_neumann_whitening(mixed_bits, length)
+        # return self.von_neumann_whitening(mixed_bits, length)
+        return "".join(map(str, mixed_bits[:length]))
 
-    @staticmethod
-    def von_neumann_whitening(bits, length):
-        """
-        Applies Von Neumann whitening to remove bias from bit sequences
-        :param bits: The raw bit sequence
-        :param length: The desired bit length of the output
-        :return: A whitened bit-string
-        """
-        output = []
-        for i in range(0, len(bits) - 1, 2):
-            if bits[i] == 0 and bits[i + 1] == 1:
-                output.append('0')
-            elif bits[i] == 1 and bits[i + 1] == 0:
-                output.append('1')
-
-        if len(output) < length:
-            print("Warning: Not enough entropy after whitening. Padding input.")
-            output += os.urandom((length - len(output) + 7) // 8).hex()[:length - len(output)]
-
-        return "".join(output[:length])
+    # @staticmethod
+    # def von_neumann_whitening(bits, length):
+    #     """
+    #     Applies Von Neumann whitening to remove bias from bit sequences
+    #     :param bits: The raw bit sequence
+    #     :param length: The desired bit length of the output
+    #     :return: A whitened bit-string
+    #     """
+    #     output = []
+    #     for i in range(0, len(bits) - 1, 2):
+    #         if bits[i] == 0 and bits[i + 1] == 1:
+    #             output.append('0')
+    #         elif bits[i] == 1 and bits[i + 1] == 0:
+    #             output.append('1')
+    #
+    #     if len(output) < length:
+    #         print("Warning: Not enough entropy after whitening. Padding input.")
+    #         output += os.urandom((length - len(output) + 7) // 8).hex()[:length - len(output)]
+    #     return "".join(output[:length])
 
     def generate_int(self, length):
         """
