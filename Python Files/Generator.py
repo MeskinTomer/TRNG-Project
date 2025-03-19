@@ -8,8 +8,9 @@ a picture captured by the camera, used for encryption
 
 import logging
 import cv2
-import time
 import math
+import hashlib
+import os
 from filelock import FileLock
 
 LOCK_FILE = 'camera.lock'  # Lock file to serialize camera access
@@ -51,27 +52,66 @@ class Generator:
         return ret_val
 
     def extract_data(self, length):
+        """
+        Turns the frame into grayscale, extracts illumination values of pixels
+        and mashes them into a byte list
+        :param length: The desired bit length of the bit-list
+        :return: The bit-list
+        """
         size = math.ceil(math.sqrt(length))   # calculate length of side of square for picture
         self.take_picture()
 
-        frame = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)   # processes frame to grayscale
-        frame = cv2.resize(frame, (size, size))
+        frame_gray = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)   # processes frame to grayscale
+        frame_gray = cv2.resize(frame_gray, (size, size))
 
-        cv2.imshow("Captured Image", frame)
-        cv2.waitKey(5000)  # Show for 1 second
-        cv2.destroyAllWindows()
+        frame_red = self.frame[:, :, 2]  # Extract red channel for extra entropy
+        frame_red = cv2.resize(frame_red, (size, size))
 
-        # list of every pixel's illumination value
-        lumval_list = []
-        for val in frame.tolist():
-            lumval_list.extend(val)
+        # Extract least significant bits (LSB) from grayscale and red channel
+        pixel_values_gray = frame_gray.flatten().tolist()
+        pixel_values_red = frame_red.flatten().tolist()
 
-        return "".join([str(x % 2) for x in lumval_list[:length]])
+        bit_list_gray = [x % 2 for x in pixel_values_gray[:length * 2]]
+        bit_list_red = [x % 2 for x in pixel_values_red[:length * 2]]
+
+        # XOR the two bit streams for additional randomness
+        mixed_bits = [bit_list_gray[i] ^ bit_list_red[i] for i in range(len(bit_list_gray))]
+
+        return self.von_neumann_whitening(mixed_bits, length)
+
+    @staticmethod
+    def von_neumann_whitening(bits, length):
+        """
+        Applies Von Neumann whitening to remove bias from bit sequences
+        :param bits: The raw bit sequence
+        :param length: The desired bit length of the output
+        :return: A whitened bit-string
+        """
+        output = []
+        for i in range(0, len(bits) - 1, 2):
+            if bits[i] == 0 and bits[i + 1] == 1:
+                output.append('0')
+            elif bits[i] == 1 and bits[i + 1] == 0:
+                output.append('1')
+
+        if len(output) < length:
+            print("Warning: Not enough entropy after whitening. Padding input.")
+            output += os.urandom((length - len(output) + 7) // 8).hex()[:length - len(output)]
+
+        return "".join(output[:length])
 
     def generate_int(self, length):
-        return int("0b" + self.extract_data(length), 2)
+        """
+        Turns the processed bit-string into an integer, applying hashing for extra security.
+        :param length: The desired bit length of the integer
+        :return: The final random integer
+        """
+        raw_bits = self.extract_data(length)
+        hashed_bits = hashlib.blake2b(raw_bits.encode(), digest_size=length // 8).hexdigest()
+
+        return int(hashed_bits, 16)
 
 
 if __name__ == '__main__':
     gen = Generator()
-    print(gen.extract_data(128))
+    print(gen.generate_int(128))
