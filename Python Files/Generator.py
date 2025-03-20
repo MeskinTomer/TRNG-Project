@@ -11,6 +11,7 @@ import cv2
 import math
 import hashlib
 import os
+import random
 from filelock import FileLock
 
 LOCK_FILE = 'camera.lock'  # Lock file to serialize camera access
@@ -87,28 +88,40 @@ class Generator:
         # XOR the two bit streams for additional randomness
         mixed_bits = [bit_list_gray[i] ^ bit_list_red[i] for i in range(len(bit_list_gray))]
 
-        # return self.von_neumann_whitening(mixed_bits, length)
         return "".join(map(str, mixed_bits[:length]))
 
-    # @staticmethod
-    # def von_neumann_whitening(bits, length):
-    #     """
-    #     Applies Von Neumann whitening to remove bias from bit sequences
-    #     :param bits: The raw bit sequence
-    #     :param length: The desired bit length of the output
-    #     :return: A whitened bit-string
-    #     """
-    #     output = []
-    #     for i in range(0, len(bits) - 1, 2):
-    #         if bits[i] == 0 and bits[i + 1] == 1:
-    #             output.append('0')
-    #         elif bits[i] == 1 and bits[i + 1] == 0:
-    #             output.append('1')
-    #
-    #     if len(output) < length:
-    #         print("Warning: Not enough entropy after whitening. Padding input.")
-    #         output += os.urandom((length - len(output) + 7) // 8).hex()[:length - len(output)]
-    #     return "".join(output[:length])
+    @staticmethod
+    def is_prime(n, k=5):
+        """
+        Miller-Rabin primality test.
+        :param n: The number to check for primality.
+        :param k: Number of iterations for accuracy.
+        :return: True if prime, False otherwise.
+        """
+        if n <= 1:
+            return False
+        if n <= 3:
+            return True
+        if n % 2 == 0:
+            return False
+
+        r, d = 0, n - 1
+        while d % 2 == 0:
+            r += 1
+            d //= 2
+
+        for _ in range(k):
+            a = random.randint(2, n - 2)
+            x = pow(a, d, n)
+            if x == 1 or x == n - 1:
+                continue
+            for _ in range(r - 1):
+                x = pow(x, 2, n)
+                if x == n - 1:
+                    break
+            else:
+                return False
+        return True
 
     def generate_int(self, length):
         """
@@ -118,11 +131,32 @@ class Generator:
         """
         raw_bits = self.extract_data(length)
         hashed_bits = hashlib.blake2b(raw_bits.encode(), digest_size=length // 8).hexdigest()
-        logging.info(f"Generated number: {int(hashed_bits, 16)}")
+        logging.info(f"Extracted number: {int(hashed_bits, 16)}")
 
         return int(hashed_bits, 16)
+
+    def generate_prime(self, bit_length):
+        """
+        Generates a prime number of the given bit length.
+        :param bit_length: The desired bit length of the prime.
+        :return: A prime number.
+        """
+        num = self.generate_int(bit_length) | 1
+
+        if num % 2 == 0:
+            num += 1
+
+        while not self.is_prime(num):
+            num += 2
+
+        logging.info(f"Generated prime number: {num}")
+        return num
 
 
 if __name__ == '__main__':
     gen = Generator()
-    print(gen.generate_int(128))
+    num = gen.generate_prime(128)
+    print(gen.is_prime(num))
+    print(num)
+    print(hex(num))
+    print(len(hex(num)) - 2)
