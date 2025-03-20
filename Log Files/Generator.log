@@ -1,0 +1,6 @@
+DEBUG: Attempting to acquire lock 2160741666736 on camera.lock
+DEBUG: Lock 2160741666736 acquired on camera.lock
+INFO: Captured image successfully!
+DEBUG: Attempting to release lock 2160741666736 on camera.lock
+DEBUG: Lock 2160741666736 released on camera.lock
+INFO: Generated number: 129717881297428175420035692129466687943

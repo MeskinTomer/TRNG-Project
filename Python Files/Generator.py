@@ -14,6 +14,15 @@ import os
 from filelock import FileLock
 
 LOCK_FILE = 'camera.lock'  # Lock file to serialize camera access
+FILE_PATH_LOGS_FOLDER = os.path.join(os.path.dirname(__file__), '..', 'Log Files')
+
+log_file = os.path.join(FILE_PATH_LOGS_FOLDER, 'Generator.log')
+logging.basicConfig(
+    filename=log_file,
+    level=logging.DEBUG,
+    filemode="w",
+    format="%(levelname)s: %(message)s"
+)
 
 
 class Generator:
@@ -24,6 +33,7 @@ class Generator:
         """
         Tries to open the camera, capture an image, and release it.
         Uses FileLock for camera resource.
+        :return: True/False depending on success of capturing.
         """
         ret_val = False
 
@@ -31,13 +41,13 @@ class Generator:
             camera = cv2.VideoCapture(0)
 
             if not camera.isOpened():
-                print(f"Camera not available")
+                logging.error('Camera not available')
                 camera.release()
             else:
                 ret, frame = camera.read()  # Only read once
 
                 if ret:
-                    print(f"Captured image successfully!")
+                    logging.info("Captured image successfully!")
                     cv2.imshow("Captured Image", frame)
                     cv2.waitKey(1000)  # Show for 1 second
                     cv2.destroyAllWindows()
@@ -45,7 +55,7 @@ class Generator:
                     self.frame = frame
                     ret_val = True
                 else:
-                    print(f"Error: No image found")
+                    logging.error("Error: No image found")
 
                 camera.release()
 
@@ -108,6 +118,7 @@ class Generator:
         """
         raw_bits = self.extract_data(length)
         hashed_bits = hashlib.blake2b(raw_bits.encode(), digest_size=length // 8).hexdigest()
+        logging.info(f"Generated number: {int(hashed_bits, 16)}")
 
         return int(hashed_bits, 16)
 
