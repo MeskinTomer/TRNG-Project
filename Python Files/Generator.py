@@ -155,8 +155,8 @@ class Generator:
 
 if __name__ == '__main__':
     gen = Generator()
-    num = gen.generate_prime(128)
-    print(gen.is_prime(num))
-    print(num)
-    print(hex(num))
-    print(len(hex(num)) - 2)
+    test = gen.generate_prime(128)
+    print(gen.is_prime(test))
+    print(test)
+    print(hex(test))
+    print(len(hex(test)) - 2)
