@@ -17,13 +17,22 @@ from filelock import FileLock
 LOCK_FILE = 'camera.lock'  # Lock file to serialize camera access
 FILE_PATH_LOGS_FOLDER = os.path.join(os.path.dirname(__file__), '..', 'Log Files')
 
-log_file = os.path.join(FILE_PATH_LOGS_FOLDER, 'Generator.log')
-logging.basicConfig(
-    filename=log_file,
-    level=logging.DEBUG,
-    filemode="w",
-    format="%(levelname)s: %(message)s"
-)
+
+def setup_logger(name, log_file, level=logging.INFO):
+    """Sets up a logger with a file handler."""
+    handler = logging.FileHandler(log_file, mode='w')
+    formatter = logging.Formatter('%(levelname)s: %(message)s')
+    handler.setFormatter(formatter)
+
+    return_logger = logging.getLogger(name)
+    return_logger.setLevel(level)
+    return_logger.addHandler(handler)
+    return_logger.propagate = False  # Prevent propagation to root logger
+
+    return return_logger
+
+
+logger = setup_logger('Generator', os.path.join(FILE_PATH_LOGS_FOLDER, 'Generator.log'))
 
 
 class Generator:
@@ -42,13 +51,13 @@ class Generator:
             camera = cv2.VideoCapture(0)
 
             if not camera.isOpened():
-                logging.error('Camera not available')
+                logger.error('Camera not available')
                 camera.release()
             else:
                 ret, frame = camera.read()  # Only read once
 
                 if ret:
-                    logging.info("Captured image successfully!")
+                    logger.info("Captured image successfully!")
                     cv2.imshow("Captured Image", frame)
                     cv2.waitKey(1000)  # Show for 1 second
                     cv2.destroyAllWindows()
@@ -56,7 +65,7 @@ class Generator:
                     self.frame = frame
                     ret_val = True
                 else:
-                    logging.error("Error: No image found")
+                    logger.error("Error: No image found")
 
                 camera.release()
 
@@ -131,7 +140,7 @@ class Generator:
         """
         raw_bits = self.extract_data(length)
         hashed_bits = hashlib.blake2b(raw_bits.encode(), digest_size=length // 8).hexdigest()
-        logging.info(f"Extracted number: {int(hashed_bits, 16)}")
+        logger.info(f"Extracted number: {int(hashed_bits, 16)}")
 
         return int(hashed_bits, 16)
 
@@ -149,7 +158,7 @@ class Generator:
         while not self.is_prime(num):
             num += 2
 
-        logging.info(f"Generated prime number: {num}")
+        logger.info(f"Generated prime number: {num}")
         return num
 
 

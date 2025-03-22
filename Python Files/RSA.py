@@ -13,13 +13,20 @@ from Generator import Generator
 
 FILE_PATH_LOGS_FOLDER = os.path.join(os.path.dirname(__file__), '..', 'Log Files')
 
-log_file = os.path.join(FILE_PATH_LOGS_FOLDER, 'RSA.log')
-logging.basicConfig(
-    filename=log_file,
-    level=logging.DEBUG,
-    filemode="w",
-    format="%(levelname)s: %(message)s"
-)
+
+def setup_logger(name, log_file, level=logging.INFO):
+    """Sets up a logger with a file handler."""
+    handler = logging.FileHandler(log_file, mode='w')
+    formatter = logging.Formatter('%(levelname)s: %(message)s')
+    handler.setFormatter(formatter)
+
+    return_logger = logging.getLogger(name)
+    return_logger.setLevel(level)
+    return_logger.addHandler(handler)
+    return return_logger
+
+
+logger = setup_logger('RSA', os.path.join(FILE_PATH_LOGS_FOLDER, 'RSA.log'))
 
 
 class RSA:
@@ -31,7 +38,11 @@ class RSA:
 
     @staticmethod
     def gcd(a, b):
-        # Compute the Greatest Common Divisor (GCD) using Euclid's algorithm
+        """
+        Compute the Greatest Common Divisor (GCD) using Euclid's algorithm
+        :param a:
+        :param b:
+        """
         while b:
             a, b = b, a % b
         return a
@@ -69,6 +80,7 @@ class RSA:
         self.public_key = (n, e)
         self.private_key = (n, d)
 
+        logger.info("Generated public and private keys")
         return self.public_key, self.private_key
 
     def set_public_key(self, public_key):
@@ -126,14 +138,15 @@ if __name__ == '__main__':
 
         # Example 1: Sending a message to someone with their public key
         someone_public_key = (
-        rsa_self.public_key[0], rsa_self.public_key[1])  # replace with the actual public key received.
+                    rsa_self.public_key[0], rsa_self.public_key[1])  # replace with the actual public key received.
         message_to_send = "Secret message for someone"
         encrypted_message = rsa_self.encrypt(message_to_send, external_public_key=someone_public_key)
         print(f"Encrypted message for someone: {encrypted_message}")
 
         # Example 2: Decrypting a message encrypted with your public key
         message_from_someone = "Another secret message"
+        # simulate someone encrypting with our public key.
         encrypted_from_someone = rsa_self.encrypt(message_from_someone,
-                                                  external_public_key=rsa_self.public_key)  # simulate someone encrypting with our public key.
+                                                  external_public_key=rsa_self.public_key)
         decrypted_from_someone = rsa_self.decrypt(encrypted_from_someone)
         print(f"Decrypted message from someone: {decrypted_from_someone}")
