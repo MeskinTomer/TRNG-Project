@@ -14,7 +14,7 @@ from Generator import Generator
 FILE_PATH_LOGS_FOLDER = os.path.join(os.path.dirname(__file__), '..', 'Log Files')
 
 
-def setup_logger(name, log_file, level=logging.INFO):
+def setup_logger(name, log_file, level=logging.DEBUG):
     """Sets up a logger with a file handler."""
     handler = logging.FileHandler(log_file, mode='w')
     formatter = logging.Formatter('%(levelname)s: %(message)s')
@@ -35,6 +35,8 @@ class RSA:
         self.key_size = key_size
         self.public_key = None
         self.private_key = None
+
+        logger.info('Instance created')
 
     @staticmethod
     def gcd(a, b):
@@ -80,12 +82,13 @@ class RSA:
         self.public_key = (n, e)
         self.private_key = (n, d)
 
-        logger.info("Generated public and private keys")
+        logger.debug("Generated public and private keys")
         return self.public_key, self.private_key
 
     def set_public_key(self, public_key):
         """Set the public key from an external source."""
         self.public_key = public_key
+        logger.debug(f'Set public key: {public_key}')
 
     def encrypt(self, message, external_public_key=None):
         """Encrypt a message using the public key."""
@@ -96,6 +99,9 @@ class RSA:
         n, e = public_key
         message_int = int.from_bytes(message.encode(), 'big')
         cipher_int = pow(message_int, e, n)
+
+        logger.debug(f"""Encrypted message: {message}
+       Into: {cipher_int}""")
         return cipher_int
 
     def decrypt(self, ciphertext):
@@ -106,6 +112,9 @@ class RSA:
         n, d = self.private_key
         message_int = pow(ciphertext, d, n)
         message = message_int.to_bytes((message_int.bit_length() + 7) // 8, 'big').decode()
+
+        logger.debug(f"""Decrypted message: {ciphertext}
+       Into: {message}""")
         return message
 
     def sign(self, message):
@@ -116,6 +125,8 @@ class RSA:
         n, d = self.private_key
         hash_value = int.from_bytes(hashlib.sha256(message.encode()).digest(), 'big')
         signature = pow(hash_value, d, n)
+
+        logger.debug(f'Generated signature: {signature}')
         return signature
 
     def verify(self, message, signature, external_public_key=None):
@@ -127,6 +138,8 @@ class RSA:
         n, e = public_key
         hash_value = int.from_bytes(hashlib.sha256(message.encode()).digest(), 'big')
         decrypted_hash = pow(signature, e, n)
+
+        logger.debug(f'Verified signature: {hash_value == decrypted_hash}')
         return hash_value == decrypted_hash
 
 

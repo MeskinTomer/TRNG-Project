@@ -18,7 +18,7 @@ LOCK_FILE = 'camera.lock'  # Lock file to serialize camera access
 FILE_PATH_LOGS_FOLDER = os.path.join(os.path.dirname(__file__), '..', 'Log Files')
 
 
-def setup_logger(name, log_file, level=logging.INFO):
+def setup_logger(name, log_file, level=logging.DEBUG):
     """Sets up a logger with a file handler."""
     handler = logging.FileHandler(log_file, mode='w')
     formatter = logging.Formatter('%(levelname)s: %(message)s')
@@ -39,6 +39,8 @@ class Generator:
     def __init__(self):
         self.frame = None
 
+        logger.info('Instance created')
+
     def take_picture(self):
         """
         Tries to open the camera, capture an image, and release it.
@@ -46,6 +48,7 @@ class Generator:
         :return: True/False depending on success of capturing.
         """
         ret_val = False
+        logger.info('Started image capturing process')
 
         with FileLock(LOCK_FILE):  # Ensures only one process can access the camera at a time
             camera = cv2.VideoCapture(0)
@@ -57,7 +60,7 @@ class Generator:
                 ret, frame = camera.read()  # Only read once
 
                 if ret:
-                    logger.info("Captured image successfully!")
+                    logger.debug("Captured image successfully!")
                     cv2.imshow("Captured Image", frame)
                     cv2.waitKey(1000)  # Show for 1 second
                     cv2.destroyAllWindows()
@@ -140,7 +143,7 @@ class Generator:
         """
         raw_bits = self.extract_data(length)
         hashed_bits = hashlib.blake2b(raw_bits.encode(), digest_size=length // 8).hexdigest()
-        logger.info(f"Extracted number: {int(hashed_bits, 16)}")
+        logger.debug(f"Extracted number: {int(hashed_bits, 16)}")
 
         return int(hashed_bits, 16)
 
@@ -158,7 +161,7 @@ class Generator:
         while not self.is_prime(num):
             num += 2
 
-        logger.info(f"Generated prime number: {num}")
+        logger.debug(f"Generated prime number: {num}")
         return num
 
 
