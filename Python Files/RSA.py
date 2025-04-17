@@ -97,7 +97,11 @@ class RSA:
             raise ValueError("Public key not available")
 
         n, e = public_key
-        message_int = int.from_bytes(message.encode(), 'big')
+        if isinstance(message, bytes):
+            message_int = int.from_bytes(message, 'big')  # Directly use bytes if the message is in bytes
+        else:
+            message_int = int.from_bytes(message.encode(), 'big')  # Otherwise, encode the string message
+
         cipher_int = pow(message_int, e, n)
 
         logger.debug(f"""Encrypted message: {message}
@@ -111,7 +115,8 @@ class RSA:
 
         n, d = self.private_key
         message_int = pow(ciphertext, d, n)
-        message = message_int.to_bytes((message_int.bit_length() + 7) // 8, 'big').decode()
+
+        message = message_int.to_bytes((message_int.bit_length() + 7) // 8, 'big')
 
         logger.debug(f"""Decrypted message: {ciphertext}
        Into: {message}""")
