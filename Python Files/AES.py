@@ -115,7 +115,7 @@ if __name__ == '__main__':
 
     # Generate a key from a password
     key, salt = aes.generate_key("my_secure_password")
-
+    print(type(key))
     # Encrypt a message
     encrypted_message = aes.encrypt("Hello, this is a secret!")
     print("Encrypted:", encrypted_message)

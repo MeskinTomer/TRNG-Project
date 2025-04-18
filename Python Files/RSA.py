@@ -153,7 +153,7 @@ if __name__ == '__main__':
         prime_generator = Generator()
         rsa_self = RSA(prime_generator, key_size=1024)
         rsa_self.generate_keys()
-
+        print(type(rsa_self.public_key[0]), type(rsa_self.public_key[1]))
         # Example 1: Sending a message to someone with their public key
         someone_public_key = (
                     rsa_self.public_key[0], rsa_self.public_key[1])  # replace with the actual public key received.
