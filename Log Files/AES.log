@@ -1,2 +1,6 @@
 INFO: Instance created
-DEBUG: Generated encryption key: b"<Z(.^f\xf3H\x0c\xda0\n\xc0wk\xf8\x02\xdb[5@\xb4/\xb7zP\xb7\x89\x18\xe6R'"
+DEBUG: Decrypted message: VjpAn9ItNrvnKy4jLYQFOdCm1i5jxLHnQhRm1hYFGmyahxcf1IUh58h6c/I=
+       Into: b'Hello World!'
+c'
+DEBUG: Encrypted message: Hello World!
+       Into: b'V:@\x9f\xd2-6\xbb\xe7+.#-\x84\x059\xd0\xa6\xd6.c\xc4\xb1\xe7B\x14f\xd6\x16\x05\x1al\x9a\x87\x17\x1f\xd4\x85!\xe7\xc8zs\xf2'

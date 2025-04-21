@@ -6,13 +6,10 @@ Description: Client
 """
 
 import socket
-import json
 from RSA import RSA
 from AES import AES
 from Generator import Generator
 from Protocol import Protocol
-import datetime
-import base64
 import logging
 import os
 
@@ -48,5 +45,7 @@ if __name__ == '__main__':
     public_key_message = protocol.receive_public_rsa_key(client_socket)
     print(public_key_message)
 
-    protocol.send_aes_key(client_socket, 'Client', public_key_message['data'])
+    protocol.send_aes_key(client_socket, 'Client', 'Server', public_key_message['data'])
     print(protocol.aes.key)
+
+    protocol.send_message(client_socket, 'Client', 'Server', 'Hello World!')

@@ -6,13 +6,10 @@ Description: Server
 """
 
 import socket
-import json
 from RSA import RSA
 from AES import AES
 from Generator import Generator
 from Protocol import Protocol
-import datetime
-import base64
 import logging
 import os
 
@@ -49,11 +46,18 @@ if __name__ == '__main__':
     while True:
         client_socket, client_address = server_socket.accept()
 
-        protocol.send_public_rsa_key(client_socket, 'Server')
+        protocol.send_public_rsa_key(client_socket, 'Server', 'Client')
         print(protocol.rsa.public_key)
 
-        aes_key = protocol.receive_aes_key(client_socket)
-        print(aes_key)
+        sender, target, encrypted_key = protocol.receive_aes_message(client_socket)
+        aes_key = protocol.decrypt_aes_key(encrypted_key)
+        print(sender, target, aes_key)
 
         protocol.aes.set_key(aes_key)
+
+        message_dict = protocol.receive_message(client_socket)
+        text = protocol.decrypt_message(message_dict)
+        print(text)
+        client_socket.close()
+
     

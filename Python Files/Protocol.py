@@ -35,43 +35,54 @@ logger = setup_logger('Protocol', os.path.join(FILE_PATH_LOGS_FOLDER, 'Protocol.
 
 
 class Protocol:
-    def __init__(self, aes, rsa):
+    def __init__(self, aes=None, rsa=None):
         """
-        Initializes the protocol with an AES encryption object and an optional RSA instance.
+        Initializes the protocol with an optional AES encryption object and an optional RSA instance.
         :param aes: An instance of your AES class (with key already set).
         :param rsa: An instance of your RSA class for key exchange, optional.
         """
         self.aes = aes
         self.rsa = rsa
 
+        logger.info('Instance created')
+
     @staticmethod
-    def construct_message(msg_type, sender, data):
+    def construct_message(msg_type, sender, target, data):
         """
         Builds a message dictionary with consistent fields.
         :param msg_type: Type of the message (e.g., 'login', 'message', etc.)
         :param sender: The sender's ID
+        :param target: The target's ID
         :param data: The actual data content (string)
         :return: Message dictionary
         """
         return {
             "type": msg_type,
             "from": sender,
+            "to": target,
             "timestamp": time.strftime('%Y-%m-%dT%H:%M:%S'),
             "data": data
         }
 
-    def send_message(self, sock: socket.socket, message_dict: dict):
+    def send_message(self, sock: socket.socket, sender, target, text):
         """
         Encrypts and sends a message over a socket with a length prefix.
         :param sock: The connected socket
-        :param message_dict: The message dictionary to send
+        :param sender: The sender's ID
+        :param target: The target's ID
+        :param text: The actual message content (string)
         """
-        json_str = json.dumps(message_dict)
-        encrypted_str = self.aes.encrypt(json_str)  # base64-encoded
-        encrypted_bytes = encrypted_str.encode()
 
-        msg_len = struct.pack('>I', len(encrypted_bytes))
-        sock.sendall(msg_len + encrypted_bytes)
+        encrypted_text = self.aes.encrypt(text)
+        message_dict = self.construct_message('message', sender, target, encrypted_text)
+
+        json_str = json.dumps(message_dict)
+        json_bytes = json_str.encode()
+
+        msg_len = struct.pack('>I', len(json_bytes))
+        sock.sendall(msg_len + json_bytes)
+
+        logger.debug(f'Sent message: {message_dict['data']}')
 
     @staticmethod
     def _recv_exact(sock, n):
@@ -91,7 +102,7 @@ class Protocol:
 
     def receive_message(self, sock: socket.socket):
         """
-        Receives and decrypts a message from the socket.
+        Receives, decodes, and loads a message from the socket.
         :param sock: The connected socket
         :return: Decrypted message dictionary
         """
@@ -100,35 +111,42 @@ class Protocol:
             raise ConnectionError("Connection closed while reading message length.")
 
         msg_len = struct.unpack('>I', raw_len)[0]
-        encrypted_data = self._recv_exact(sock, msg_len)
-        if not encrypted_data:
+        received_data = self._recv_exact(sock, msg_len)
+        if not received_data:
             raise ConnectionError("Connection closed while reading message data.")
 
-        return self.unpack_message(encrypted_data)
+        data_str = received_data.decode()
+        message_dict = json.loads(data_str)
 
-    def unpack_message(self, encrypted_bytes: bytes):
-        """
-        Decrypts and parses the message into a dictionary.
-        :param encrypted_bytes: Encrypted message (base64 string, encoded to bytes)
-        :return: Decrypted message dictionary
-        """
-        encrypted_str = encrypted_bytes.decode()
-        decrypted_json = self.aes.decrypt(encrypted_str)
-        return json.loads(decrypted_json)
+        logger.debug(f'Received message: {message_dict}')
+        return message_dict
 
-    def send_public_rsa_key(self, sock: socket.socket, sender):
+    def decrypt_message(self, message_dict):
+        """
+        Decrypts the data part of the message dictionary.
+        :param message_dict: Message dictionary
+        :return: Decrypted message text
+        """
+        encrypted_str = message_dict['data']
+        decrypted_str = self.aes.decrypt(encrypted_str)
+        return decrypted_str
+
+    def send_public_rsa_key(self, sock: socket.socket, sender, target):
         """
         Sends the public RSA key of the sender
         :param sock: The connected socket
         :param sender: Sender identification
+        :param target: Target identification
         """
-        message_dict = self.construct_message('public key', sender, self.rsa.public_key)
+        message_dict = self.construct_message('public key', sender, target, self.rsa.public_key)
 
         # Convert message into json and convert it into bytes
         json_str = json.dumps(message_dict)
         message_bytes = json_str.encode()
 
         msg_len = struct.pack('>I', len(message_bytes))
+
+        logger.debug('Sent public RSA key')
         sock.sendall(msg_len + message_bytes)
 
     def receive_public_rsa_key(self, sock: socket.socket):
@@ -147,9 +165,11 @@ class Protocol:
             raise ConnectionError("Connection closed while reading message data.")
 
         json_str = json_bytes.decode()
+
+        logger.debug('Received public RSA key')
         return json.loads(json_str)
 
-    def send_aes_key(self, sock: socket.socket, sender, external_rsa_public_key):
+    def send_aes_key(self, sock: socket.socket, sender, target, external_rsa_public_key):
         """
         Sends the AES key, encrypted with the external RSA public key
         (Not sent with json due to RSA byte limit)
@@ -159,33 +179,44 @@ class Protocol:
         """
         key_b64 = base64.b64encode(self.aes.key).decode('utf-8')
 
-        # Encrypts the AES key and converts it into bytes
+        # Encrypts the AES key and add metadata to it
         encrypted_int = self.rsa.encrypt(key_b64, external_rsa_public_key)
-        encrypted_bytes = str(encrypted_int).encode()
+        metadata_str = f'{sender}!{target}!'
+        message_str = metadata_str + str(encrypted_int)
 
-        msg_len = struct.pack('>I', len(encrypted_bytes))
-        sock.sendall(msg_len + encrypted_bytes)
+        # Encode final message and send it
+        message_bytes = str(message_str).encode()
+        msg_len = struct.pack('>I', len(message_bytes))
 
-    def receive_aes_key(self, sock: socket.socket):
+        logger.debug('Sent AES key')
+        sock.sendall(msg_len + message_bytes)
+
+    def receive_aes_message(self, sock: socket.socket):
         """
-        Receives the agreed upon AES key, while RSA decrypting it
+        Receives the agreed upon AES key message
         :param sock: The connected socket
-        :return: Decrypted message dictionary
+        :return: sender ID, target ID, encrypted AES key
         """
         raw_len = self._recv_exact(sock, 4)
         if not raw_len:
             raise ConnectionError("Connection closed while reading message length.")
 
         msg_len = struct.unpack('>I', raw_len)[0]
-        encrypted_bytes = self._recv_exact(sock, msg_len)
-        if not encrypted_bytes:
+        message_bytes = self._recv_exact(sock, msg_len)
+        if not message_bytes:
             raise ConnectionError("Connection closed while reading message data.")
 
-        # Decodes the bytes into an str, and then RSA decrypts it
-        encrypted_str = encrypted_bytes.decode()
+        sender, target, encrypted_str = message_bytes.decode().split('!')
+        return sender, target, encrypted_str
+
+    def decrypt_aes_key(self, encrypted_str):
+        """
+        Decrypts RSA encrypted AES key
+        :param encrypted_str: The encrypted str key
+        :return: sender ID, target ID, encrypted AES key
+        """
         decrypted_bytes = self.rsa.decrypt(int(encrypted_str))
 
-        # Extracts the AES key from the decrypted data
         aes_key_b64 = decrypted_bytes.decode('utf-8')
         aes_key = base64.b64decode(aes_key_b64)
 
