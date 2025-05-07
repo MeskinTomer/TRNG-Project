@@ -59,5 +59,3 @@ if __name__ == '__main__':
         text = protocol.decrypt_message(message_dict)
         print(text)
         client_socket.close()
-
-    
