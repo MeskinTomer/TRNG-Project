@@ -51,7 +51,7 @@ class Generator:
         logger.info('Started image capturing process')
 
         with FileLock(LOCK_FILE):  # Ensures only one process can access the camera at a time
-            camera = cv2.VideoCapture(0)
+            camera = cv2.VideoCapture(0, cv2.CAP_DSHOW)
 
             if not camera.isOpened():
                 logger.error('Camera not available')
@@ -154,9 +154,6 @@ class Generator:
         :return: A prime number.
         """
         num = self.generate_int(bit_length) | 1
-
-        if num % 2 == 0:
-            num += 1
 
         while not self.is_prime(num):
             num += 2
