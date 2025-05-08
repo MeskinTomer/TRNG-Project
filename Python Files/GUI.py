@@ -23,6 +23,8 @@ class ChatApp(tk.Tk):
 
         self.show_frame(HomeScreen)
 
+        self.ChatScreen = ChatScreen
+
     def show_frame(self, frame_class):
         self.frames[frame_class].tkraise()
 
@@ -171,6 +173,7 @@ class ChatScreen(tk.Frame):
         super().__init__(parent, bg="#e8f0fe")
         self.controller = controller
         self.active_users = []
+        self.send_callback = None
 
         self.left_frame = tk.Frame(self, bg="#d0e0f0", width=200)
         self.left_frame.pack(side="left", fill="y")
@@ -210,7 +213,11 @@ class ChatScreen(tk.Frame):
             self.chat_display.configure(state="normal")
             self.chat_display.insert(tk.END, f"You: {message}\n")
             self.chat_display.configure(state="disabled")
+            self.chat_display.yview(tk.END)
             self.message_entry.delete(0, tk.END)
+
+        if self.send_callback:
+            self.send_callback(message)  # Send to client/network logic
 
     def add_active_user(self, username: str):
         if username not in self.active_users:
@@ -234,10 +241,19 @@ class ChatScreen(tk.Frame):
             self.display_system_message(f"{username} disconnected.", "red")
             print(f"[INFO] Removed user: {username}")
 
+    def set_send_callback(self, callback):
+        self.send_callback = callback
+
 
 if __name__ == "__main__":
+    def send_to_server(message):
+        print("SEND THIS TO SERVER:", message)
+        # Your client.send(message) code here
+
+
     app = ChatApp()
     app.after(3000, lambda: app.frames[ChatScreen].add_active_user("alice"))
     app.after(6000, lambda: app.frames[ChatScreen].receive_message("alice", "Hey everyone!"))
     app.after(12000, lambda: app.frames[ChatScreen].remove_active_user("alice"))
+    app.frames[app.ChatScreen].set_send_callback(send_to_server)
     app.mainloop()
