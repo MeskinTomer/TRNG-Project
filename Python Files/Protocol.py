@@ -35,14 +35,14 @@ logger = setup_logger('Protocol', os.path.join(FILE_PATH_LOGS_FOLDER, 'Protocol.
 
 
 class Protocol:
-    def __init__(self, aes=None, rsa=None):
+    def __init__(self):
         """
-        Initializes the protocol with an optional AES encryption object and an optional RSA instance.
-        :param aes: An instance of your AES class (with key already set).
-        :param rsa: An instance of your RSA class for key exchange, optional.
+        Initializes the protocol with AES and RSA instances
         """
-        self.aes = aes
-        self.rsa = rsa
+        gen = Generator()
+
+        self.aes = AES(gen)
+        self.rsa = RSA(gen)
 
         logger.info('Instance created')
 
@@ -222,14 +222,14 @@ class Protocol:
 
         return aes_key
 
+    def __repr__(self):
+        return "<Protocol instance>"
+
 
 if __name__ == '__main__':
-    gen = Generator()
-    rsa = RSA(gen)
-    aes = AES(gen)
-    aes.generate_key("my_secure_password")
-    protocol = Protocol(aes, rsa)
 
+    protocol = Protocol()
+    protocol.aes.generate_key("my_secure_password")
     # message = protocol.construct_message('message', 'Tomer', 'Hello World!')
 
 

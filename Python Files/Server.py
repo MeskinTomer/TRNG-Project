@@ -32,12 +32,8 @@ logger = setup_logger('Server', os.path.join(FILE_PATH_LOGS_FOLDER, 'Server.log'
 
 
 if __name__ == '__main__':
-    gen = Generator()
-    rsa = RSA(gen)
-    rsa.generate_keys()
-    aes = AES(gen)
-
-    protocol = Protocol(aes, rsa)
+    protocol = Protocol()
+    protocol.rsa.generate_keys()
 
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.bind(('localhost', 8080))

@@ -31,13 +31,16 @@ def setup_logger(name, log_file, level=logging.DEBUG):
 logger = setup_logger('Client', os.path.join(FILE_PATH_LOGS_FOLDER, 'Client.log'))
 
 
+class Client:
+    def __init__(self):
+        gen = Generator
+        self.rsa = RSA(gen)
+        self.AES = AES(gen)
+
+
 if __name__ == '__main__':
-    gen = Generator()
-    rsa = RSA(gen)
-    rsa.generate_keys()
-    aes = AES(gen)
-    aes.generate_key("my_secure_password")
-    protocol = Protocol(aes, rsa)
+    protocol = Protocol()
+    protocol.aes.generate_key("my_secure_password")
 
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect(('localhost', 8080))
