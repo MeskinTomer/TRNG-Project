@@ -3,7 +3,7 @@ import pickle
 from typing import Optional, List
 
 
-class ProtocolDatabase:
+class Database:
     def __init__(self, db_path: str = "protocol_instances.db"):
         self.db_path = db_path
         self._initialize_db()
@@ -77,7 +77,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
 
-    db = ProtocolDatabase("test_clients.db")
+    db = Database("test_clients.db")
 
     # Store protocol instances
     for client in ["alice", "bob", "charlie"]:

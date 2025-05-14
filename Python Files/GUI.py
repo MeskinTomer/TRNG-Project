@@ -24,6 +24,8 @@ class ChatApp(tk.Tk):
         self.show_frame(HomeScreen)
 
         self.ChatScreen = ChatScreen
+        self.LoginScreen = LoginScreen
+        self.SignupScreen = SignupScreen
 
     def show_frame(self, frame_class):
         self.frames[frame_class].tkraise()
@@ -77,6 +79,7 @@ class HomeScreen(CenteredFrame):
 class LoginScreen(CenteredFrame):
     def __init__(self, parent, controller):
         super().__init__(parent)
+        self.send_callback = None
 
         tk.Label(self.inner_frame, text="Login", font=("Helvetica", 28, "bold"), bg="#e8f0fe", fg="#1a1a1a").pack(
             pady=30)
@@ -116,14 +119,22 @@ class LoginScreen(CenteredFrame):
             print("Login - Username:", username)
             print("Login - Password:", password)
             self.status_label.config(text="")  # Clear any previous errors
+
+            if self.send_callback:
+                self.send_callback(('Login', (username, password)))  # Send to client/network logic
+
             controller.show_frame(ChatScreen)
         else:
             self.status_label.config(text="Invalid username or password")
+
+    def set_send_callback(self, callback):
+        self.send_callback = callback
 
 
 class SignupScreen(CenteredFrame):
     def __init__(self, parent, controller):
         super().__init__(parent)
+        self.send_callback = None
 
         tk.Label(self.inner_frame, text="Sign Up", font=("Helvetica", 28, "bold"), bg="#e8f0fe", fg="#1a1a1a").pack(
             pady=30)
@@ -164,8 +175,14 @@ class SignupScreen(CenteredFrame):
             print("Signup - Password:", password)
             self.status_label.config(text="")  # Clear any previous errors
             controller.show_frame(ChatScreen)
+
+            if self.send_callback:
+                self.send_callback(('Signup', (username, password)))  # Send to client/network logic
         else:
             self.status_label.config(text="Username already exists or invalid input")
+
+    def set_send_callback(self, callback):
+        self.send_callback = callback
 
 
 class ChatScreen(tk.Frame):
@@ -209,6 +226,7 @@ class ChatScreen(tk.Frame):
 
     def send_message(self):
         message = self.message_entry.get()
+
         if message:
             self.chat_display.configure(state="normal")
             self.chat_display.insert(tk.END, f"You: {message}\n")
@@ -216,8 +234,8 @@ class ChatScreen(tk.Frame):
             self.chat_display.yview(tk.END)
             self.message_entry.delete(0, tk.END)
 
-        if self.send_callback:
-            self.send_callback(message)  # Send to client/network logic
+            if self.send_callback:
+                self.send_callback(('Message', message))  # Send to client/network logic
 
     def add_active_user(self, username: str):
         if username not in self.active_users:

@@ -10,6 +10,7 @@ from RSA import RSA
 from AES import AES
 from Generator import Generator
 from Protocol import Protocol
+from DataBase import Database
 import logging
 import os
 
@@ -29,6 +30,32 @@ def setup_logger(name, log_file, level=logging.DEBUG):
 
 
 logger = setup_logger('Server', os.path.join(FILE_PATH_LOGS_FOLDER, 'Server.log'))
+
+
+class Client:
+    def __init__(self):
+        self.socket = None
+        self.db = Database()
+        self.key_ids = []
+
+    def run(self):
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.bind(('localhost', 8080))
+        self.socket = server_socket
+
+
+
+    def exchange_keys_with_client(self, protocol: Protocol):
+        # Send Server's public RSA key
+        protocol.send_public_rsa_key(client_socket, 'Server', 'Client')
+        print(protocol.rsa.public_key)
+
+        # Receive and set AES key for communication with client
+        sender, target, encrypted_key = protocol.receive_aes_message(client_socket)
+        aes_key = protocol.decrypt_aes_key(encrypted_key)
+        print(sender, target, aes_key)
+
+        protocol.aes.set_key(aes_key)
 
 
 if __name__ == '__main__':
