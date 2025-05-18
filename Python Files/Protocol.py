@@ -222,6 +222,33 @@ class Protocol:
 
         return aes_key
 
+    def send_clients_amount(self, sock: socket.socket, sender, target, num):
+        message_dict = self.construct_message('clients amount', sender, target, num)
+
+        # Convert message into json and convert it into bytes
+        json_str = json.dumps(message_dict)
+        message_bytes = json_str.encode()
+
+        msg_len = struct.pack('>I', len(message_bytes))
+
+        logger.debug('Sent clients amount')
+        sock.sendall(msg_len + message_bytes)
+
+    def receive_clients_amount(self, sock: socket.socket):
+        raw_len = self._recv_exact(sock, 4)
+        if not raw_len:
+            raise ConnectionError("Connection closed while reading message length.")
+
+        msg_len = struct.unpack('>I', raw_len)[0]
+        json_bytes = self._recv_exact(sock, msg_len)
+        if not json_bytes:
+            raise ConnectionError("Connection closed while reading message data.")
+
+        json_str = json_bytes.decode()
+
+        logger.debug('Received clients amount')
+        return json.loads(json_str)
+
     def __repr__(self):
         return "<Protocol instance>"
 

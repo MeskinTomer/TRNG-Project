@@ -12,6 +12,7 @@ from Generator import Generator
 from Protocol import Protocol
 from DataBase import Database
 from GUI import ChatApp
+from PriorityLock import PriorityLock
 import logging
 import os
 import threading
@@ -43,6 +44,8 @@ class Client:
         self.gui = ChatApp()
         self.server_protocol = Protocol()
         self.send_queue = queue.Queue()  # GUI puts messages here
+        self.id = None
+        self.lock = PriorityLock()
 
         self.gui.frames[self.gui.ChatScreen].set_send_callback(self.enqueue_message)
         self.gui.frames[self.gui.LoginScreen].set_send_callback(self.enqueue_message)
@@ -70,12 +73,27 @@ class Client:
         self.server_protocol.send_aes_key(self.socket, 'Client', 'Server', public_key_message['data'])
         print(self.server_protocol.aes.key)
 
+    def broadcast_public_key(self):
+        self.enqueue_message(('Command', 'broadcast_public_key', None))
+
     def sender_thread(self):
         while True:
             try:
                 message = self.send_queue.get()
-
                 print(message)
+
+                match message[0]:
+                    case 'command':
+                        pass
+                    case 'Login':
+                        pass
+                    case 'Signup':
+                        pass
+                    case 'Message':
+                        pass
+
+            except queue.Empty:
+                break
 
             except Exception as e:
                 logger.error(f"[SenderThread] {e}")
@@ -83,15 +101,55 @@ class Client:
     def receiver_thread(self):
         while True:
             try:
-                msg = self.server_protocol.receive_message(self.socket)
-                if msg:
-                    message_dict = self.server_protocol.receive_message(self.sockt)
-                    text = self.server_protocol.decrypt_message(message_dict)
-                else:
+                message_dict = self.server_protocol.receive_message(self.socket)
+                if message_dict is None:
                     break
+
+                if message_dict['type'] == 'message':
+                    pass
+                else:
+                    pass
             except Exception as e:
                 logger.error(f"[ReceiverThread] {e}")
                 break
+
+    def new_client_join(self):
+        self.lock.acquire('A')
+
+        # Broadcast RSA public key
+        self.server_protocol.send_public_rsa_key(self.socket, self.id, 'Broadcast')
+
+        # Receive clients amount and receive AES keys
+        amount_dict = self.server_protocol.receive_clients_amount(self.socket)
+        amount = amount_dict['data']
+
+        for i in range(amount):
+            temp_protocol = Protocol()
+            sender, target, encrypted_key = self.server_protocol.receive_aes_message(self.socket)
+            aes_key = self.server_protocol.decrypt_aes_key(encrypted_key)
+
+            temp_protocol.aes.set_key(aes_key)
+            self.db.insert_instance(sender, temp_protocol)
+            self.key_ids.append(sender)
+
+        self.lock.release()
+
+    def new_client_response(self):
+        self.lock.acquire('A')
+
+        # Receive public RSA key
+        public_key_dict = self.server_protocol.receive_public_rsa_key(self.socket)
+        public_key = public_key_dict['data']
+        sender = public_key_dict['sender']
+
+        # Generate Protocol instance and AES key
+        temp_protocol = Protocol()
+        temp_protocol.aes.generate_key("my_secure_password")
+        self.db.insert_instance(sender, temp_protocol)
+        self.key_ids.append(sender)
+
+        # Send AES key
+        self.server_protocol.send_aes_key(self.socket, self.id, sender, public_key)
 
     def test(self):
         t = threading.Thread(target=self.sender_thread, args=())
