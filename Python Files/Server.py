@@ -37,18 +37,17 @@ logger = setup_logger('Server', os.path.join(FILE_PATH_LOGS_FOLDER, 'Server.log'
 class Server:
     def __init__(self):
         self.socket = None
-        self.clients_sockets = []
+        self.clients_sockets = {}
         self.db = Database('server_db.db')
-        self.key_ids = []
         self.client_list_lock = threading.Lock()
         self.threads = []
 
     def handle_client(self, client_socket, client_addr):
-        with self.client_list_lock:
-            self.clients_sockets.append(client_socket)
-
         client_protocol = Protocol()
         client_id = self.exchange_keys_with_client(client_socket, client_protocol)
+
+        with self.client_list_lock:
+            self.clients_sockets[client_id] = client_socket
 
         identified = False
 
@@ -62,14 +61,23 @@ class Server:
             elif message_dict['type'] == 'Signup':
                 data = client_protocol.decrypt_message(message_dict)
                 username, password = data.split()
-                identified = self.signup_new_client(username, password)
+                identified = self.check_signup(username, password)
 
             if not identified:
                 client_protocol.send_message(client_socket, 'Server', client_id, 'Status', 'Invalid')
 
         client_protocol.send_message(client_socket, 'Server', client_id, 'Status', 'Confirmed')
 
-        print('here')
+        disconnected = False
+        while not disconnected:
+            message_dict = client_protocol.receive_message(client_socket)
+            if message_dict['target'] == 'Broadcast':
+                print('broadcast')
+                self.new_client_operation(client_socket, client_protocol, client_id, message_dict)
+            elif message_dict['type'] != 'Server':
+                self.message_transfer_operation(client_socket, client_protocol, client_id, message_dict)
+
+
 
     def run(self):
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -110,8 +118,28 @@ class Server:
     def check_login(self, username, password):
         return True
 
-    def signup_new_client(self, username, password):
+    def check_signup(self, username, password):
         return True
+
+    def new_client_operation(self, client_socket, client_protocol, client_id, rsa_message_dict):
+        clients_amount = len(self.clients_sockets) - 1
+        client_protocol.send_clients_amount(client_socket, 'Server', client_id, clients_amount)
+
+        for temp_id, temp_socket in self.clients_sockets.items():
+            if temp_id != client_id:
+                temp_protocol = self.db.get_instance_by_client_id(temp_id)
+
+                temp_protocol.send_message(temp_socket, 'Server', temp_id, 'command', 'new client')
+                temp_protocol.send_public_rsa_key(temp_socket, client_id, temp_id)
+                sender, target, encrypted_key = temp_protocol.receive_aes_message(temp_socket)
+
+                client_protocol.send_aes_key(client_socket, temp_id, client_id, None, True, encrypted_key)
+
+    def message_transfer_operation(self, client_socket, client_protocol, client_id, message_dict):
+        temp_protocol = self.db.get_instance_by_client_id(message_dict['target'])
+        temp_socket = self.clients_sockets[message_dict['target']]
+
+        temp_protocol.send_message(temp_socket, client_id, message_dict['target'], 'message', message_dict['data'], True)
 
 
 if __name__ == '__main__':

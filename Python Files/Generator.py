@@ -61,9 +61,9 @@ class Generator:
 
                 if ret:
                     logger.debug("Captured image successfully!")
-                    cv2.imshow("Captured Image", frame)
-                    cv2.waitKey(1000)  # Show for 1 second
-                    cv2.destroyAllWindows()
+                    # cv2.imshow("Captured Image", frame)
+                    # cv2.waitKey(1000)  # Show for 1 second
+                    # cv2.destroyAllWindows()
                     camera.release()
                     self.frame = frame
                     ret_val = True

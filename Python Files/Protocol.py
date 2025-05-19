@@ -64,7 +64,7 @@ class Protocol:
             "data": data
         }
 
-    def send_message(self, sock: socket.socket, sender, target, type, text):
+    def send_message(self, sock: socket.socket, sender, target, type, text, is_transfer=False):
         """
         Encrypts and sends a message over a socket with a length prefix.
         :param sock: The connected socket
@@ -72,8 +72,10 @@ class Protocol:
         :param target: The target's ID
         :param text: The actual message content (string)
         """
-
-        encrypted_text = self.aes.encrypt(text)
+        if not is_transfer:
+            encrypted_text = self.aes.encrypt(text)
+        else:
+            encrypted_text = text
         message_dict = self.construct_message(type, sender, target, encrypted_text)
 
         json_str = json.dumps(message_dict)
@@ -169,18 +171,24 @@ class Protocol:
         logger.debug('Received public RSA key')
         return json.loads(json_str)
 
-    def send_aes_key(self, sock: socket.socket, sender, target, external_rsa_public_key):
+    def send_aes_key(self, sock: socket.socket, sender, target, external_rsa_public_key=None, is_transfer=False, transfer_key=None):
         """
         Sends the AES key, encrypted with the external RSA public key
         (Not sent with json due to RSA byte limit)
         :param sock: The connected socket
         :param sender: Sender identification
         :param external_rsa_public_key: Public RSA key for encryption
+        :param is_transfer: Used for flagging if server is transferring key between clients
+        :param transfer_key: key for transferring
         """
-        key_b64 = base64.b64encode(self.aes.key).decode('utf-8')
+        if not is_transfer:
+            key_b64 = base64.b64encode(self.aes.key).decode('utf-8')
 
-        # Encrypts the AES key and add metadata to it
-        encrypted_int = self.rsa.encrypt(key_b64, external_rsa_public_key)
+            # Encrypts the AES key and add metadata to it
+            encrypted_int = self.rsa.encrypt(key_b64, external_rsa_public_key)
+        else:
+            encrypted_int = transfer_key
+
         metadata_str = f'{sender}!{target}!'
         message_str = metadata_str + str(encrypted_int)
 
@@ -223,7 +231,7 @@ class Protocol:
         return aes_key
 
     def send_clients_amount(self, sock: socket.socket, sender, target, num):
-        message_dict = self.construct_message('clients amount', sender, target, num)
+        message_dict = self.construct_message('clients amount', sender, target, str(num))
 
         # Convert message into json and convert it into bytes
         json_str = json.dumps(message_dict)
