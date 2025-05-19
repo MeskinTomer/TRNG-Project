@@ -58,13 +58,13 @@ class Protocol:
         """
         return {
             "type": msg_type,
-            "from": sender,
-            "to": target,
+            "sender": sender,
+            "target": target,
             "timestamp": time.strftime('%Y-%m-%dT%H:%M:%S'),
             "data": data
         }
 
-    def send_message(self, sock: socket.socket, sender, target, text):
+    def send_message(self, sock: socket.socket, sender, target, type, text):
         """
         Encrypts and sends a message over a socket with a length prefix.
         :param sock: The connected socket
@@ -74,7 +74,7 @@ class Protocol:
         """
 
         encrypted_text = self.aes.encrypt(text)
-        message_dict = self.construct_message('message', sender, target, encrypted_text)
+        message_dict = self.construct_message(type, sender, target, encrypted_text)
 
         json_str = json.dumps(message_dict)
         json_bytes = json_str.encode()

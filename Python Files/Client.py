@@ -39,13 +39,14 @@ logger = setup_logger('Client', os.path.join(FILE_PATH_LOGS_FOLDER, 'Client.log'
 class Client:
     def __init__(self):
         self.socket = None
-        self.db = Database()
+        self.db = Database('client_db.db')
         self.key_ids = []
         self.gui = ChatApp()
         self.server_protocol = Protocol()
         self.send_queue = queue.Queue()  # GUI puts messages here
-        self.id = None
+        self.id = 'tomer'
         self.lock = PriorityLock()
+        self.threads = []
 
         self.gui.frames[self.gui.ChatScreen].set_send_callback(self.enqueue_message)
         self.gui.frames[self.gui.LoginScreen].set_send_callback(self.enqueue_message)
@@ -61,17 +62,52 @@ class Client:
 
         self.exchange_keys_server()
 
+        t = threading.Thread(target=self.start_communication, args=())
+        t.start()
+        self.threads.append(t)
+
+        self.gui.mainloop()
+
+        for thread in self.threads:
+            thread.join()
+
+    def start_communication(self):
+        identified = False
+        while not identified:
+            message = self.send_queue.get()
+
+            match message[0]:
+                case 'Login':
+                    username, password = message[1]
+                    identification = username + ' ' + password
+                    self.server_protocol.send_message(self.socket, self.id, 'Server', 'Login', identification)
+
+                    message_dict = self.server_protocol.receive_message(self.socket)
+                    status = self.server_protocol.decrypt_message(message_dict)
+                    if message_dict['type'] == 'Status' and status == 'Confirmed':
+                        identified = True
+                case 'Signup':
+                    username, password = message[1]
+                    identification = username + ' ' + password
+                    self.server_protocol.send_message(self.socket, self.id, 'Server', 'Signup', identification)
+
+                    message_dict = self.server_protocol.receive_message(self.socket)
+                    status = self.server_protocol.decrypt_message(message_dict)
+                    if message_dict['type'] == 'Status' and status == 'Confirmed':
+                        identified = True
+
+        print('here')
+
     def exchange_keys_server(self):
-        # Receive Server's public RSA key
-        public_key_message = self.server_protocol.receive_public_rsa_key(self.socket)
-        print(public_key_message)
+        # Send Client's public RSA key
+        self.server_protocol.rsa.generate_keys()
+        self.server_protocol.send_public_rsa_key(self.socket, self.id, 'Server')
 
-        # Generate AES key for communication with server
-        self.server_protocol.aes.generate_key("my_secure_password")
+        # Receive and set AES key for communication with server
+        sender, target, encrypted_key = self.server_protocol.receive_aes_message(self.socket)
+        aes_key = self.server_protocol.decrypt_aes_key(encrypted_key)
 
-        # Send generated AES key
-        self.server_protocol.send_aes_key(self.socket, 'Client', 'Server', public_key_message['data'])
-        print(self.server_protocol.aes.key)
+        self.server_protocol.aes.set_key(aes_key)
 
     def broadcast_public_key(self):
         self.enqueue_message(('Command', 'broadcast_public_key', None))
@@ -80,7 +116,6 @@ class Client:
         while True:
             try:
                 message = self.send_queue.get()
-                print(message)
 
                 match message[0]:
                     case 'command':
@@ -174,4 +209,4 @@ if __name__ == '__main__':
     # protocol.send_message(client_socket, 'Client', 'Server', 'Hello World!')
 
     client = Client()
-    client.test()
+    client.run()
