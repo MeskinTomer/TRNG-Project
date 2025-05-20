@@ -51,13 +51,19 @@ class Server:
         self.client_list_lock = threading.Lock()
         self.threads = []
         self.transfer_queue = queue.Queue()
+        self.last_id = 0
 
         global logger
         logger = setup_client_logger()
 
     def handle_client(self, client_socket, client_addr):
         client_protocol = Protocol(logger)
-        client_id = self.exchange_keys_with_client(client_socket, client_protocol)
+        self.exchange_keys_with_client(client_socket, client_protocol)
+
+        self.last_id += 1
+        client_id = str(self.last_id)
+        client_protocol.send_message(client_socket, 'Server', client_id, 'Identification', client_id)
+        self.db.insert_instance(client_id, client_protocol)
 
         with self.client_list_lock:
             self.clients_sockets[client_id] = client_socket
@@ -126,9 +132,6 @@ class Server:
 
         # Send generated AES key
         protocol.send_aes_key(client_socket, 'Server', sender, public_key)
-
-        self.db.insert_instance(sender, protocol)
-        return sender
 
     def check_login(self, username, password):
         return True

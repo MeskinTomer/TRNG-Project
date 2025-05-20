@@ -47,12 +47,12 @@ logger = None
 
 class Client:
     def __init__(self):
-        self.id = 'old'
+        self.id = None
         global logger
-        logger = setup_client_logger(self.id)
+        logger = setup_client_logger('new')
 
         self.socket = None
-        self.db = Database('client_db.db')
+        self.db = None
         self.key_ids = []
         self.gui = ChatApp()
         self.server_protocol = Protocol(logger)
@@ -73,6 +73,10 @@ class Client:
         self.socket = client_socket
 
         self.exchange_keys_server()
+        message_dict = self.server_protocol.receive_message(self.socket)
+        self.id = self.server_protocol.decrypt_message(message_dict)
+
+        self.db = Database(f'client_db_{self.id}.db')
 
         t = threading.Thread(target=self.start_communication, args=())
         t.start()
@@ -121,7 +125,7 @@ class Client:
     def exchange_keys_server(self):
         # Send Client's public RSA key
         self.server_protocol.rsa.generate_keys()
-        self.server_protocol.send_public_rsa_key(self.socket, self.id, 'Server')
+        self.server_protocol.send_public_rsa_key(self.socket, 'no id', 'Server')
 
         # Receive and set AES key for communication with server
         sender, target, encrypted_key = self.server_protocol.receive_aes_message(self.socket)
