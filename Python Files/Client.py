@@ -22,30 +22,41 @@ import queue
 FILE_PATH_LOGS_FOLDER = os.path.join(os.path.dirname(__file__), '..', 'Log Files')
 
 
-def setup_logger(name, log_file, level=logging.DEBUG):
-    """Sets up a logger with a file handler."""
+def setup_client_logger(client_name):
+    """Sets up a logger specific to a client (e.g., Alice, Bob)."""
+    logger_name = f'Client.{client_name}'
+    log_file = os.path.join(FILE_PATH_LOGS_FOLDER, f'{client_name}.log')
+
+    logger = logging.getLogger(logger_name)
+    logger.setLevel(logging.DEBUG)
+
+    # Prevent duplicate handlers if already set
+    if logger.hasHandlers():
+        logger.handlers.clear()
+
     handler = logging.FileHandler(log_file, mode='w')
     formatter = logging.Formatter('%(levelname)s: %(message)s')
     handler.setFormatter(formatter)
+    logger.addHandler(handler)
 
-    return_logger = logging.getLogger(name)
-    return_logger.setLevel(level)
-    return_logger.addHandler(handler)
-    return return_logger
+    return logger
 
 
-logger = setup_logger('Client', os.path.join(FILE_PATH_LOGS_FOLDER, 'Client.log'))
+logger = None
 
 
 class Client:
     def __init__(self):
+        self.id = 'old'
+        global logger
+        logger = setup_client_logger(self.id)
+
         self.socket = None
-        self.db = Database('client_db2.db')
+        self.db = Database('client_db.db')
         self.key_ids = []
         self.gui = ChatApp()
-        self.server_protocol = Protocol()
+        self.server_protocol = Protocol(logger)
         self.send_queue = queue.Queue()  # GUI puts messages here
-        self.id = 'alon'
         self.lock = PriorityLock()
         self.threads = []
 
@@ -149,7 +160,6 @@ class Client:
                 if message_dict['type'] == 'message':
                     self.display_received_message(message_dict)
                 elif message_dict['type'] == 'command':
-                    print('he re')
                     self.new_client_response()
                 else:
                     pass
@@ -168,8 +178,10 @@ class Client:
         amount = int(amount_dict['data'])
 
         for i in range(amount):
-            temp_protocol = Protocol()
+            temp_protocol = Protocol(logger)
+            print('reached 1')
             sender, target, encrypted_key = self.server_protocol.receive_aes_message(self.socket)
+            print('reached 2')
             aes_key = self.server_protocol.decrypt_aes_key(encrypted_key)
 
             temp_protocol.aes.set_key(aes_key)
@@ -188,13 +200,14 @@ class Client:
         sender = public_key_dict['sender']
 
         # Generate Protocol instance and AES key
-        temp_protocol = Protocol()
+        temp_protocol = Protocol(logger)
         temp_protocol.aes.generate_key("my_secure_password")
         self.db.insert_instance(sender, temp_protocol)
         self.key_ids.append(sender)
 
         # Send AES key
-        self.server_protocol.send_aes_key(self.socket, self.id, sender, public_key)
+        self.server_protocol.send_message(self.socket, self.id, 'Server', 'alert', 'AES key incoming')
+        temp_protocol.send_aes_key(self.socket, self.id, sender, public_key)
 
         self.gui.after(0, lambda: self.gui.frames[ChatScreen].add_active_user(sender))
         self.lock.release()

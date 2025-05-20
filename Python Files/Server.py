@@ -15,23 +15,32 @@ from Protocol import Protocol
 from DataBase import Database
 import logging
 import os
+import queue
 
 FILE_PATH_LOGS_FOLDER = os.path.join(os.path.dirname(__file__), '..', 'Log Files')
 
 
-def setup_logger(name, log_file, level=logging.DEBUG):
-    """Sets up a logger with a file handler."""
+def setup_client_logger():
+    """Sets up a logger specific to a client (e.g., Alice, Bob)."""
+    logger_name = 'Server'
+    log_file = os.path.join(FILE_PATH_LOGS_FOLDER, 'Server.log')
+
+    logger = logging.getLogger(logger_name)
+    logger.setLevel(logging.DEBUG)
+
+    # Prevent duplicate handlers if already set
+    if logger.hasHandlers():
+        logger.handlers.clear()
+
     handler = logging.FileHandler(log_file, mode='w')
     formatter = logging.Formatter('%(levelname)s: %(message)s')
     handler.setFormatter(formatter)
+    logger.addHandler(handler)
 
-    return_logger = logging.getLogger(name)
-    return_logger.setLevel(level)
-    return_logger.addHandler(handler)
-    return return_logger
+    return logger
 
 
-logger = setup_logger('Server', os.path.join(FILE_PATH_LOGS_FOLDER, 'Server.log'))
+logger = None
 
 
 class Server:
@@ -41,9 +50,13 @@ class Server:
         self.db = Database('server_db.db')
         self.client_list_lock = threading.Lock()
         self.threads = []
+        self.transfer_queue = queue.Queue()
+
+        global logger
+        logger = setup_client_logger()
 
     def handle_client(self, client_socket, client_addr):
-        client_protocol = Protocol()
+        client_protocol = Protocol(logger)
         client_id = self.exchange_keys_with_client(client_socket, client_protocol)
 
         with self.client_list_lock:
@@ -67,17 +80,19 @@ class Server:
                 client_protocol.send_message(client_socket, 'Server', client_id, 'Status', 'Invalid')
 
         client_protocol.send_message(client_socket, 'Server', client_id, 'Status', 'Confirmed')
+        self.new_client_operation(client_socket, client_protocol ,client_id)
 
         disconnected = False
         while not disconnected:
             message_dict = client_protocol.receive_message(client_socket)
-            if message_dict['target'] == 'Broadcast':
-                print('broadcast')
-                self.new_client_operation(client_socket, client_protocol, client_id, message_dict)
-            elif message_dict['type'] != 'Server':
+            if message_dict['target'] == 'Server':
+                if message_dict['type'] == 'alert':
+                    data = client_protocol.decrypt_message(message_dict)
+                    if data == 'AES key incoming':
+                        sender, target, encrypted_key = client_protocol.receive_aes_message(client_socket)
+                        self.transfer_queue.put((sender, target, encrypted_key))
+            elif message_dict['target'] != 'Server':
                 self.message_transfer_operation(client_socket, client_protocol, client_id, message_dict)
-
-
 
     def run(self):
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -121,18 +136,22 @@ class Server:
     def check_signup(self, username, password):
         return True
 
-    def new_client_operation(self, client_socket, client_protocol, client_id, rsa_message_dict):
+    def new_client_operation(self, client_socket, client_protocol: Protocol, client_id):
+        rsa_message_dict = client_protocol.receive_public_rsa_key(client_socket)
+
         clients_amount = len(self.clients_sockets) - 1
         client_protocol.send_clients_amount(client_socket, 'Server', client_id, clients_amount)
 
         for temp_id, temp_socket in self.clients_sockets.items():
             if temp_id != client_id:
                 temp_protocol = self.db.get_instance_by_client_id(temp_id)
+                temp_protocol.rsa.set_public_key(rsa_message_dict['data'])
 
                 temp_protocol.send_message(temp_socket, 'Server', temp_id, 'command', 'new client')
                 temp_protocol.send_public_rsa_key(temp_socket, client_id, temp_id)
-                sender, target, encrypted_key = temp_protocol.receive_aes_message(temp_socket)
-
+                print('here 2')
+                sender, target, encrypted_key = self.transfer_queue.get()
+                print('here 3')
                 client_protocol.send_aes_key(client_socket, temp_id, client_id, None, True, encrypted_key)
 
     def message_transfer_operation(self, client_socket, client_protocol, client_id, message_dict):
