@@ -47,6 +47,7 @@ class Server:
     def __init__(self):
         self.socket = None
         self.clients_sockets = {}
+        self.clients_usernames = {}
         self.db = Database('server_db.db')
         self.client_list_lock = threading.Lock()
         self.threads = []
@@ -86,7 +87,8 @@ class Server:
                 client_protocol.send_message(client_socket, 'Server', client_id, 'Status', 'Invalid')
 
         client_protocol.send_message(client_socket, 'Server', client_id, 'Status', 'Confirmed')
-        self.new_client_operation(client_socket, client_protocol ,client_id)
+        self.clients_usernames[client_id] = username
+        self.new_client_operation(client_socket, client_protocol, client_id, username)
 
         disconnected = False
         while not disconnected:
@@ -139,7 +141,7 @@ class Server:
     def check_signup(self, username, password):
         return True
 
-    def new_client_operation(self, client_socket, client_protocol: Protocol, client_id):
+    def new_client_operation(self, client_socket, client_protocol: Protocol, client_id, username):
         rsa_message_dict = client_protocol.receive_public_rsa_key(client_socket)
 
         clients_amount = len(self.clients_sockets) - 1
@@ -152,10 +154,13 @@ class Server:
 
                 temp_protocol.send_message(temp_socket, 'Server', temp_id, 'command', 'new client')
                 temp_protocol.send_public_rsa_key(temp_socket, client_id, temp_id)
-                print('here 2')
+
                 sender, target, encrypted_key = self.transfer_queue.get()
-                print('here 3')
+
                 client_protocol.send_aes_key(client_socket, temp_id, client_id, None, True, encrypted_key)
+
+                temp_protocol.send_message(temp_socket, 'Server', temp_id, 'username', username)
+                client_protocol.send_message(client_socket, 'Server', client_id, 'username', self.clients_usernames[temp_id])
 
     def message_transfer_operation(self, client_socket, client_protocol, client_id, message_dict):
         temp_protocol = self.db.get_instance_by_client_id(message_dict['target'])

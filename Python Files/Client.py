@@ -59,6 +59,7 @@ class Client:
         self.send_queue = queue.Queue()  # GUI puts messages here
         self.lock = PriorityLock()
         self.threads = []
+        self.clients_usernames = {}
 
         self.gui.frames[self.gui.ChatScreen].set_send_callback(self.enqueue_message)
         self.gui.frames[self.gui.LoginScreen].set_send_callback(self.enqueue_message)
@@ -191,7 +192,12 @@ class Client:
             temp_protocol.aes.set_key(aes_key)
             self.db.insert_instance(sender, temp_protocol)
             self.key_ids.append(sender)
-            self.gui.after(0, lambda: self.gui.frames[ChatScreen].add_active_user(sender))
+
+            message_dict = self.server_protocol.receive_message(self.socket)
+            username = self.server_protocol.decrypt_message(message_dict)
+
+            self.clients_usernames[sender] = username
+            self.gui.after(0, lambda: self.gui.frames[ChatScreen].add_active_user(username))
 
         self.lock.release()
 
@@ -213,7 +219,11 @@ class Client:
         self.server_protocol.send_message(self.socket, self.id, 'Server', 'alert', 'AES key incoming')
         temp_protocol.send_aes_key(self.socket, self.id, sender, public_key)
 
-        self.gui.after(0, lambda: self.gui.frames[ChatScreen].add_active_user(sender))
+        message_dict = self.server_protocol.receive_message(self.socket)
+        username = self.server_protocol.decrypt_message(message_dict)
+
+        self.clients_usernames[sender] = username
+        self.gui.after(0, lambda: self.gui.frames[ChatScreen].add_active_user(username))
         self.lock.release()
 
     def broadcast_message(self, message):
@@ -225,8 +235,9 @@ class Client:
     def display_received_message(self, message_dict):
         temp_protocol = self.db.get_instance_by_client_id(message_dict['sender'])
         text = temp_protocol.decrypt_message(message_dict)
+        username = self.clients_usernames[message_dict['sender']]
 
-        self.gui.after(0, lambda: self.gui.frames[ChatScreen].receive_message(message_dict['sender'], text))
+        self.gui.after(0, lambda: self.gui.frames[ChatScreen].receive_message(username, text))
 
     def test(self):
         t = threading.Thread(target=self.sender_thread, args=())
