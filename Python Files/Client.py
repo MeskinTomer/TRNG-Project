@@ -49,7 +49,7 @@ class Client:
     def __init__(self):
         self.id = None
         global logger
-        logger = setup_client_logger('new')
+        logger = setup_client_logger('old')
 
         self.socket = None
         self.db = None
@@ -146,7 +146,7 @@ class Client:
                 if message[0] == 'Message':
                     self.broadcast_message(message)
                 elif message[0] == 'Disconnect':
-                    self.disconnect_response()
+                    self.disconnect()
 
             except queue.Empty:
                 continue

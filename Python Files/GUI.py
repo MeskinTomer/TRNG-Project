@@ -27,7 +27,7 @@ class ChatApp(tk.Tk):
         self.LoginScreen = LoginScreen
         self.SignupScreen = SignupScreen
 
-
+        self.protocol("WM_DELETE_WINDOW", self.on_closing)
 
     def show_frame(self, frame_class):
         self.frames[frame_class].tkraise()
