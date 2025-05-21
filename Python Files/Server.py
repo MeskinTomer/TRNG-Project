@@ -94,11 +94,14 @@ class Server:
         while not disconnected:
             message_dict = client_protocol.receive_message(client_socket)
             if message_dict['target'] == 'Server':
+                data = client_protocol.decrypt_message(message_dict)
                 if message_dict['type'] == 'alert':
-                    data = client_protocol.decrypt_message(message_dict)
                     if data == 'AES key incoming':
                         sender, target, encrypted_key = client_protocol.receive_aes_message(client_socket)
                         self.transfer_queue.put((sender, target, encrypted_key))
+                elif message_dict['type'] == 'command':
+                    if data == 'Disconnected':
+                        self.disconnect_client(client_id)
             elif message_dict['target'] != 'Server':
                 self.message_transfer_operation(client_socket, client_protocol, client_id, message_dict)
 
@@ -144,11 +147,11 @@ class Server:
     def new_client_operation(self, client_socket, client_protocol: Protocol, client_id, username):
         rsa_message_dict = client_protocol.receive_public_rsa_key(client_socket)
 
-        clients_amount = len(self.clients_sockets) - 1
+        clients_amount = len(self.clients_usernames) - 1
         client_protocol.send_clients_amount(client_socket, 'Server', client_id, clients_amount)
 
         for temp_id, temp_socket in self.clients_sockets.items():
-            if temp_id != client_id:
+            if temp_id != client_id and temp_id in self.clients_usernames.keys():
                 temp_protocol = self.db.get_instance_by_client_id(temp_id)
                 temp_protocol.rsa.set_public_key(rsa_message_dict['data'])
 
@@ -167,6 +170,14 @@ class Server:
         temp_socket = self.clients_sockets[message_dict['target']]
 
         temp_protocol.send_message(temp_socket, client_id, message_dict['target'], 'message', message_dict['data'], True)
+
+    def disconnect_client(self, client_id):
+        for temp_id, temp_socket in self.clients_sockets.items():
+            if temp_id != client_id and temp_id in self.clients_usernames.keys():
+                temp_protocol = self.db.get_instance_by_client_id(temp_id)
+
+                temp_protocol.send_message(temp_socket, 'Server', temp_id, 'command', 'disconnect client')
+                temp_protocol.send_message(temp_socket, 'Server', temp_id, 'disconnect_id', client_id)
 
 
 if __name__ == '__main__':

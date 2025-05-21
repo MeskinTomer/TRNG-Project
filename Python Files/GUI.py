@@ -27,9 +27,15 @@ class ChatApp(tk.Tk):
         self.LoginScreen = LoginScreen
         self.SignupScreen = SignupScreen
 
+
+
     def show_frame(self, frame_class):
         self.frames[frame_class].tkraise()
 
+    def on_closing(self):
+        if self.frames[self.ChatScreen].send_callback:
+            self.frames[self.ChatScreen].send_callback(('Disconnect', None))
+        self.destroy()
 
 def add_placeholder(entry, placeholder_text):
     def on_focus_in(event):

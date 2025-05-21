@@ -3,13 +3,12 @@ INFO: AES key updated
 DEBUG: Decrypted ciphertext of length 33 bytes
 DEBUG: Encrypted plaintext of length 8 bytes to 40 bytes ciphertext
 DEBUG: Decrypted ciphertext of length 41 bytes
-INFO: AES instance created
-INFO: AES key updated
+DEBUG: Decrypted ciphertext INFO: AES key updated
 DEBUG: Decrypted ciphertext of length 37 bytes
 DEBUG: Decrypted ciphertext of length 35 bytes
-DEBUG: Encrypted plaintext of length 2 bytes to 34 bytes ciphertext
-ength 3 bytes to 35 bytes ciphertext
-DEBUG: Decrypted ciphertext of length 34 bytes
+ngth 16 bytes to 48 bytes ciphertext
+DEBUG: Decrypted ciphertext of length 36 bytes
+DEBUG: Encrypted plaintext of length 3 bytes to 35 bytes ciphertext
 pted plaintext of length 10 bytes to 42 bytes ciphertext
 DEBUG: Decrypted ciphertext of length 48 bytes
 DEBUG: Encrypted plaintext of length 4 bytes to 36 bytes ciphertext

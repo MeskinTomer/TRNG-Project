@@ -143,10 +143,11 @@ class Client:
             try:
                 message = self.send_queue.get(timeout=1)
 
-                if message[0] == 'command':
-                    pass
-                elif message[0] == 'Message':
+                if message[0] == 'Message':
                     self.broadcast_message(message)
+                elif message[0] == 'Disconnect':
+                    self.disconnect_response()
+
             except queue.Empty:
                 continue
 
@@ -165,7 +166,11 @@ class Client:
                 if message_dict['type'] == 'message':
                     self.display_received_message(message_dict)
                 elif message_dict['type'] == 'command':
-                    self.new_client_response()
+                    data = self.server_protocol.decrypt_message(message_dict)
+                    if data == 'new client':
+                        self.new_client_response()
+                    elif data == 'disconnect client':
+                        self.disconnect_response()
                 else:
                     pass
             except Exception as e:
@@ -184,9 +189,8 @@ class Client:
 
         for i in range(amount):
             temp_protocol = Protocol(logger)
-            print('reached 1')
             sender, target, encrypted_key = self.server_protocol.receive_aes_message(self.socket)
-            print('reached 2')
+
             aes_key = self.server_protocol.decrypt_aes_key(encrypted_key)
 
             temp_protocol.aes.set_key(aes_key)
@@ -238,6 +242,18 @@ class Client:
         username = self.clients_usernames[message_dict['sender']]
 
         self.gui.after(0, lambda: self.gui.frames[ChatScreen].receive_message(username, text))
+
+    def disconnect(self):
+        self.server_protocol.send_message(self.socket, self.id, 'Server', 'command', 'Disconnected')
+
+    def disconnect_response(self):
+        message_dict = self.server_protocol.receive_message(self.socket)
+        disconnect_id = self.server_protocol.decrypt_message(message_dict)
+
+        self.gui.after(0, lambda: self.gui.frames[ChatScreen].remove_active_user(self.clients_usernames[disconnect_id]))
+        self.db.delete_instance_by_client_id(disconnect_id)
+        self.key_ids.remove(disconnect_id)
+        self.clients_usernames.pop(disconnect_id)
 
     def test(self):
         t = threading.Thread(target=self.sender_thread, args=())
