@@ -112,23 +112,19 @@ class LoginScreen(CenteredFrame):
         value = self.password.get()
         return value if value != "Enter Password" else ""
 
-    @staticmethod
-    def validate_login(username, password):
-        # Placeholder for real DB check
-        return True  # Change to real validation later
-
     def login(self, controller):
         username = self.get_username()
         password = self.get_password()
 
-        if self.validate_login(username, password):
-            print("Login - Username:", username)
-            print("Login - Password:", password)
-            self.status_label.config(text="")  # Clear any previous errors
+        self.status_label.config(text="Logging in...")
 
-            if self.send_callback:
-                self.send_callback(('Login', (username, password)))  # Send to client/network logic
+        # Send login request to client/server
+        if self.send_callback:
+            self.send_callback(('Login', (username, password)))
 
+    def receive_login_result(self, success, controller):
+        if success:
+            self.status_label.config(text="")  # Clear any errors
             controller.show_frame(ChatScreen)
         else:
             self.status_label.config(text="Invalid username or password")
@@ -167,25 +163,22 @@ class SignupScreen(CenteredFrame):
         value = self.new_password.get()
         return value if value != "Choose a Password" else ""
 
-    @staticmethod
-    def validate_signup(username, password):
-        # Placeholder for real DB check (e.g., check if user already exists)
-        return True  # Change to real validation later
-
     def signup(self, controller):
         username = self.get_new_username()
         password = self.get_new_password()
 
-        if self.validate_signup(username, password):
-            print("Signup - Username:", username)
-            print("Signup - Password:", password)
-            self.status_label.config(text="")  # Clear any previous errors
-            controller.show_frame(ChatScreen)
+        self.status_label.config(text="Signing up...")
 
-            if self.send_callback:
-                self.send_callback(('Signup', (username, password)))  # Send to client/network logic
+        # Send login request to client/server
+        if self.send_callback:
+            self.send_callback(('Signup', (username, password)))
+
+    def receive_signup_result(self, success, controller):
+        if success:
+            self.status_label.config(text="")
+            controller.show_frame(ChatScreen)
         else:
-            self.status_label.config(text="Username already exists or invalid input")
+            self.status_label.config(text="Invalid username or password")
 
     def set_send_callback(self, callback):
         self.send_callback = callback

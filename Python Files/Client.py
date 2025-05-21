@@ -11,8 +11,7 @@ from AES import AES
 from Generator import Generator
 from Protocol import Protocol
 from DataBase import Database
-from GUI import ChatApp
-from GUI import ChatScreen
+from GUI import ChatApp, ChatScreen, LoginScreen, SignupScreen
 from PriorityLock import PriorityLock
 import logging
 import os
@@ -100,18 +99,20 @@ class Client:
                     self.server_protocol.send_message(self.socket, self.id, 'Server', 'Login', identification)
 
                     message_dict = self.server_protocol.receive_message(self.socket)
-                    status = self.server_protocol.decrypt_message(message_dict)
-                    if message_dict['type'] == 'Status' and status == 'Confirmed':
-                        identified = True
+                    if message_dict['type'] == 'Status':
+                        status = self.server_protocol.decrypt_message(message_dict)
+                        identified = True if status == 'Confirmed' else False
+                        self.gui.after(0, lambda: self.gui.frames[LoginScreen].receive_login_result(identified, self.gui))
                 case 'Signup':
                     username, password = message[1]
                     identification = username + ' ' + password
                     self.server_protocol.send_message(self.socket, self.id, 'Server', 'Signup', identification)
 
                     message_dict = self.server_protocol.receive_message(self.socket)
-                    status = self.server_protocol.decrypt_message(message_dict)
-                    if message_dict['type'] == 'Status' and status == 'Confirmed':
-                        identified = True
+                    if message_dict['type'] == 'Status':
+                        status = self.server_protocol.decrypt_message(message_dict)
+                        identified = True if status == 'Confirmed' else False
+                        self.gui.after(0,lambda: self.gui.frames[SignupScreen].receive_signup_result(identified, self.gui))
 
         self.new_client_join()
 
