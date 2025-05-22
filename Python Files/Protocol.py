@@ -89,7 +89,7 @@ class Protocol:
     def decrypt_message(self, message_dict):
         logger.debug(f'Decrypting message from {message_dict["sender"]}')
         decrypted_str = self.aes.decrypt(message_dict['data'])
-        logger.debug(f'Message decrypted successfully')
+        logger.debug(f'Message decrypted successfully: {decrypted_str}')
         return decrypted_str
 
     def send_public_rsa_key(self, sock: socket.socket, sender, target):

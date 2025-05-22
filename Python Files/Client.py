@@ -13,6 +13,7 @@ from Protocol import Protocol
 from DataBase import Database
 from GUI import ChatApp, ChatScreen, LoginScreen, SignupScreen
 from PriorityLock import PriorityLock
+import hashlib
 import logging
 import os
 import threading
@@ -95,7 +96,8 @@ class Client:
             match message[0]:
                 case 'Login':
                     username, password = message[1]
-                    identification = username + ' ' + password
+                    password_hash = hashlib.sha256(password.encode()).hexdigest()
+                    identification = f"{username} {password_hash}"
                     self.server_protocol.send_message(self.socket, self.id, 'Server', 'Login', identification)
 
                     message_dict = self.server_protocol.receive_message(self.socket)
@@ -105,7 +107,8 @@ class Client:
                         self.gui.after(0, lambda: self.gui.frames[LoginScreen].receive_login_result(identified, self.gui))
                 case 'Signup':
                     username, password = message[1]
-                    identification = username + ' ' + password
+                    password_hash = hashlib.sha256(password.encode()).hexdigest()
+                    identification = f"{username} {password_hash}"
                     self.server_protocol.send_message(self.socket, self.id, 'Server', 'Signup', identification)
 
                     message_dict = self.server_protocol.receive_message(self.socket)
