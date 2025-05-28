@@ -104,6 +104,9 @@ class LoginScreen(CenteredFrame):
         tk.Button(self.inner_frame, text="Submit", font=("Helvetica", 14), width=15, bg="#4a90e2", fg="white",
                   command=lambda: self.login(controller)).pack(pady=10)
 
+        tk.Button(self.inner_frame, text="Return to Home", font=("Helvetica", 12),
+                  command=lambda: controller.show_frame(HomeScreen)).pack(pady=(5, 10))
+
     def get_username(self):
         value = self.username.get()
         return value if value != "Enter Username" else ""
@@ -154,6 +157,9 @@ class SignupScreen(CenteredFrame):
 
         tk.Button(self.inner_frame, text="Register", font=("Helvetica", 14), width=15, bg="#4a90e2", fg="white",
                   command=lambda: self.signup(controller)).pack(pady=10)
+
+        tk.Button(self.inner_frame, text="Return to Home", font=("Helvetica", 12),
+                  command=lambda: controller.show_frame(HomeScreen)).pack(pady=(5, 10))
 
     def get_new_username(self):
         value = self.new_username.get()
@@ -211,9 +217,6 @@ class ChatScreen(tk.Frame):
         self.send_button = tk.Button(self.chat_frame, text="Send", font=("Helvetica", 12), bg="#4a90e2", fg="white",
                                      command=self.send_message)
         self.send_button.pack(padx=10, pady=(0, 10), side="right")
-
-        tk.Button(self.chat_frame, text="Back to Home", font=("Helvetica", 10),
-                  command=lambda: controller.show_frame(HomeScreen)).pack(pady=5)
 
     def display_system_message(self, message: str, color: str):
         self.chat_display.configure(state="normal")
