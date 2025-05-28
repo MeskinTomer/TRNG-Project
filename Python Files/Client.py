@@ -10,7 +10,6 @@ from RSA import RSA
 from AES import AES
 from Generator import Generator
 from Protocol import Protocol
-from DataBase import Database
 from GUI import ChatApp, ChatScreen, LoginScreen, SignupScreen
 from PriorityLock import PriorityLock
 import hashlib
@@ -52,7 +51,7 @@ class Client:
         logger = setup_client_logger('old')
 
         self.socket = None
-        self.db = None
+        self.protocols = {}
         self.key_ids = []
         self.gui = ChatApp()
         self.server_protocol = Protocol(logger)
@@ -76,8 +75,6 @@ class Client:
         self.exchange_keys_server()
         message_dict = self.server_protocol.receive_message(self.socket)
         self.id = self.server_protocol.decrypt_message(message_dict)
-
-        self.db = Database(f'client_db_{self.id}.db')
 
         t = threading.Thread(target=self.start_communication, args=())
         t.start()
@@ -115,7 +112,7 @@ class Client:
                     if message_dict['type'] == 'Status':
                         status = self.server_protocol.decrypt_message(message_dict)
                         identified = True if status == 'Confirmed' else False
-                        self.gui.after(0,lambda: self.gui.frames[SignupScreen].receive_signup_result(identified, self.gui))
+                        self.gui.after(0, lambda: self.gui.frames[SignupScreen].receive_signup_result(identified, self.gui))
 
         self.new_client_join()
 
@@ -198,7 +195,7 @@ class Client:
             aes_key = self.server_protocol.decrypt_aes_key(encrypted_key)
 
             temp_protocol.aes.set_key(aes_key)
-            self.db.insert_instance(sender, temp_protocol)
+            self.protocols[sender] = temp_protocol
             self.key_ids.append(sender)
 
             message_dict = self.server_protocol.receive_message(self.socket)
@@ -220,7 +217,7 @@ class Client:
         # Generate Protocol instance and AES key
         temp_protocol = Protocol(logger)
         temp_protocol.aes.generate_key("my_secure_password")
-        self.db.insert_instance(sender, temp_protocol)
+        self.protocols[sender] = temp_protocol
         self.key_ids.append(sender)
 
         # Send AES key
@@ -237,11 +234,11 @@ class Client:
     def broadcast_message(self, message):
         for target_id in self.key_ids:
             print('broadcast')
-            target_protocol = self.db.get_instance_by_client_id(target_id)
+            target_protocol = self.protocols[target_id]
             target_protocol.send_message(self.socket, self.id, target_id, 'message', message[1])
 
     def display_received_message(self, message_dict):
-        temp_protocol = self.db.get_instance_by_client_id(message_dict['sender'])
+        temp_protocol = self.protocols[message_dict['sender']]
         text = temp_protocol.decrypt_message(message_dict)
         username = self.clients_usernames[message_dict['sender']]
 
@@ -254,8 +251,9 @@ class Client:
         message_dict = self.server_protocol.receive_message(self.socket)
         disconnect_id = self.server_protocol.decrypt_message(message_dict)
 
-        self.gui.after(0, lambda: self.gui.frames[ChatScreen].remove_active_user(self.clients_usernames[disconnect_id]))
-        self.db.delete_instance_by_client_id(disconnect_id)
+        username = self.clients_usernames[disconnect_id]
+        self.gui.after(0, lambda: self.gui.frames[ChatScreen].remove_active_user(username))
+        del self.protocols[disconnect_id]
         self.key_ids.remove(disconnect_id)
         self.clients_usernames.pop(disconnect_id)
 
@@ -267,19 +265,5 @@ class Client:
 
 
 if __name__ == '__main__':
-    # protocol = Protocol()
-    # protocol.aes.generate_key("my_secure_password")
-    #
-    # client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    # client_socket.connect(('localhost', 8080))
-    #
-    # public_key_message = protocol.receive_public_rsa_key(client_socket)
-    # print(public_key_message)
-    #
-    # protocol.send_aes_key(client_socket, 'Client', 'Server', public_key_message['data'])
-    # print(protocol.aes.key)
-    #
-    # protocol.send_message(client_socket, 'Client', 'Server', 'Hello World!')
-
     client = Client()
     client.run()
