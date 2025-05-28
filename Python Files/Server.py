@@ -8,11 +8,7 @@ Description: Server
 import socket
 import threading
 from ClientsDB import ClientDatabase
-from RSA import RSA
-from AES import AES
-from Generator import Generator
 from Protocol import Protocol
-from DataBase import Database
 import logging
 import os
 import queue
@@ -20,24 +16,24 @@ import queue
 FILE_PATH_LOGS_FOLDER = os.path.join(os.path.dirname(__file__), '..', 'Log Files')
 
 
-def setup_client_logger():
+def setup_logger():
     """Sets up a logger specific to a client (e.g., Alice, Bob)."""
     logger_name = 'Server'
     log_file = os.path.join(FILE_PATH_LOGS_FOLDER, 'Server.log')
 
-    logger = logging.getLogger(logger_name)
-    logger.setLevel(logging.DEBUG)
+    temp_logger = logging.getLogger(logger_name)
+    temp_logger.setLevel(logging.DEBUG)
 
     # Prevent duplicate handlers if already set
-    if logger.hasHandlers():
-        logger.handlers.clear()
+    if temp_logger.hasHandlers():
+        temp_logger.handlers.clear()
 
     handler = logging.FileHandler(log_file, mode='w')
-    formatter = logging.Formatter('%(levelname)s: %(message)s')
+    formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     handler.setFormatter(formatter)
-    logger.addHandler(handler)
+    temp_logger.addHandler(handler)
 
-    return logger
+    return temp_logger
 
 
 logger = None
@@ -56,9 +52,9 @@ class Server:
         self.last_id = 0
 
         global logger
-        logger = setup_client_logger()
+        logger = setup_logger()
 
-    def handle_client(self, client_socket, client_addr):
+    def handle_client(self, client_socket):
         client_protocol = Protocol(logger)
         self.exchange_keys_with_client(client_socket, client_protocol)
 
@@ -71,6 +67,7 @@ class Server:
             self.clients_sockets[client_id] = client_socket
 
         self.usernames_passwords_db = ClientDatabase()
+        username, password = None, None
         identified = False
         while not identified:
             message_dict = client_protocol.receive_message(client_socket)
@@ -105,7 +102,7 @@ class Server:
                     if data == 'Disconnected':
                         self.disconnect_client(client_id)
             elif message_dict['target'] != 'Server':
-                self.message_transfer_operation(client_socket, client_protocol, client_id, message_dict)
+                self.message_transfer_operation(client_id, message_dict)
 
     def run(self):
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -117,7 +114,7 @@ class Server:
         try:
             while True:
                 client_socket, addr = self.socket.accept()
-                thread = threading.Thread(target=self.handle_client, args=(client_socket, addr), daemon=True)
+                thread = threading.Thread(target=self.handle_client, args=(client_socket,), daemon=True)
                 thread.start()
                 self.threads.append(thread)
         except KeyboardInterrupt:
@@ -128,16 +125,13 @@ class Server:
                     client.close()
             self.socket.close()
 
-    def exchange_keys_with_client(self, client_socket, protocol: Protocol):
-        # Receive Client's public RSA key
+    @staticmethod
+    def exchange_keys_with_client(client_socket, protocol: Protocol):
         public_key_message = protocol.receive_public_rsa_key(client_socket)
         public_key = public_key_message['data']
         sender = public_key_message['sender']
 
-        # Generate AES key for communication with client
         protocol.aes.generate_key("my_secure_password")
-
-        # Send generated AES key
         protocol.send_aes_key(client_socket, 'Server', sender, public_key)
 
     def check_login(self, username, password):
@@ -162,16 +156,19 @@ class Server:
 
                 sender, target, encrypted_key = self.transfer_queue.get()
 
-                client_protocol.send_aes_key(client_socket, temp_id, client_id, None, True, encrypted_key)
+                client_protocol.send_aes_key(client_socket, temp_id, client_id,
+                                             None, True, encrypted_key)
 
                 temp_protocol.send_message(temp_socket, 'Server', temp_id, 'username', username)
-                client_protocol.send_message(client_socket, 'Server', client_id, 'username', self.clients_usernames[temp_id])
+                client_protocol.send_message(client_socket, 'Server', client_id,
+                                             'username', self.clients_usernames[temp_id])
 
-    def message_transfer_operation(self, client_socket, client_protocol, client_id, message_dict):
+    def message_transfer_operation(self, client_id, message_dict):
         temp_protocol = self.db[message_dict['target']]
         temp_socket = self.clients_sockets[message_dict['target']]
 
-        temp_protocol.send_message(temp_socket, client_id, message_dict['target'], 'message', message_dict['data'], True)
+        temp_protocol.send_message(temp_socket, client_id,
+                                   message_dict['target'], 'message', message_dict['data'], True)
 
     def disconnect_client(self, client_id):
         for temp_id, temp_socket in self.clients_sockets.items():
@@ -185,29 +182,5 @@ class Server:
 
 
 if __name__ == '__main__':
-    # protocol = Protocol()
-    # protocol.rsa.generate_keys()
-    #
-    # server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    # server_socket.bind(('localhost', 8080))
-    # server_socket.listen(5)
-    #
-    # while True:
-    #     client_socket, client_address = server_socket.accept()
-    #
-    #     protocol.send_public_rsa_key(client_socket, 'Server', 'Client')
-    #     print(protocol.rsa.public_key)
-    #
-    #     sender, target, encrypted_key = protocol.receive_aes_message(client_socket)
-    #     aes_key = protocol.decrypt_aes_key(encrypted_key)
-    #     print(sender, target, aes_key)
-    #
-    #     protocol.aes.set_key(aes_key)
-    #
-    #     message_dict = protocol.receive_message(client_socket)
-    #     text = protocol.decrypt_message(message_dict)
-    #     print(text)
-    #     client_socket.close()
-
     server = Server()
     server.run()

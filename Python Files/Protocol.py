@@ -205,15 +205,6 @@ class Protocol:
         return "<Protocol instance>"
 
 
-
 if __name__ == '__main__':
-
     protocol = Protocol()
     protocol.aes.generate_key("my_secure_password")
-    # message = protocol.construct_message('message', 'Tomer', 'Hello World!')
-
-
-
-
-
-
