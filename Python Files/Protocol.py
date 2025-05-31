@@ -120,22 +120,23 @@ class Protocol:
         logger.debug(f'Public RSA key received | From: {public_key_data.get("sender")} | Target: {public_key_data.get("target")}')
         return public_key_data
 
-    def send_aes_key(self, sock: socket.socket, sender, target, external_rsa_public_key=None, is_transfer=False, transfer_key=None):
+    def send_aes_key(self, sock: socket.socket, sender, target, external_rsa_public_key=None, is_transfer=False,
+                     transfer_key=None):
         logger.info(f'Sending AES key | Sender: {sender}, Target: {target}, Transfer: {is_transfer}')
         if not is_transfer:
             key_b64 = base64.b64encode(self.aes.key).decode('utf-8')
             encrypted_int = self.rsa.encrypt(key_b64, external_rsa_public_key)
+            encrypted_str = str(encrypted_int)
         else:
-            encrypted_int = transfer_key
+            encrypted_str = transfer_key
 
-        metadata_str = f'{sender}!{target}!'
-        message_str = metadata_str + str(encrypted_int)
-        message_bytes = message_str.encode()
+        message_dict = self.construct_message('aes key', sender, target, encrypted_str)
+        message_bytes = json.dumps(message_dict).encode()
         msg_len = struct.pack('>I', len(message_bytes))
 
-        logger.critical(f'msg len: {msg_len} | aes_key: {encrypted_int}')
+        logger.critical(f'msg len: {msg_len} | aes_key (encrypted int length): {len(encrypted_str)} digits')
         sock.sendall(msg_len + message_bytes)
-        logger.debug(f'AES key sent successfully | Encrypted Int Length: {len(str(encrypted_int))} digits')
+        logger.debug('AES key sent successfully')
 
     def receive_aes_message(self, sock: socket.socket):
         logger.info('Receiving AES key message')
@@ -143,7 +144,6 @@ class Protocol:
         if not raw_len:
             raise ConnectionError("Connection closed while reading message length.")
 
-        logger.debug(f"Raw length bytes: {list(raw_len)}")
         msg_len = struct.unpack('>I', raw_len)[0]
         if msg_len > MAX_REASONABLE_LENGTH:
             logger.critical(f"Unrealistic AES message length received: {msg_len}")
@@ -153,17 +153,11 @@ class Protocol:
         if not message_bytes:
             raise ConnectionError("Connection closed while reading message data.")
 
-        try:
-            parts = message_bytes.decode().split('!')
-            if len(parts) != 3:
-                raise ValueError("Incorrect format. Expected sender!target!encrypted_int")
-            sender, target, encrypted_str = parts
-        except Exception as e:
-            logger.critical(f"Failed to parse AES message: {e}")
-            raise ConnectionError("Corrupted AES message received")
+        message_dict = json.loads(message_bytes.decode())
+        logger.debug(
+            f'Received AES key message | Type: {message_dict.get("type")}, Sender: {message_dict.get("sender")}, Target: {message_dict.get("target")}')
 
-        logger.debug(f'Received AES key message | Sender: {sender}, Target: {target}')
-        return sender, target, encrypted_str
+        return message_dict
 
     def decrypt_aes_key(self, encrypted_str):
         logger.info('Decrypting received AES key')

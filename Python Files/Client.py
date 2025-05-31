@@ -55,6 +55,7 @@ class Client:
         self.lock = PriorityLock()
         self.threads = []
         self.clients_usernames = {}
+        self.disconnected = False
 
         logger.info("Initializing GUI and setting callbacks")
         self.gui.frames[self.gui.ChatScreen].set_send_callback(self.enqueue_message)
@@ -139,8 +140,8 @@ class Client:
         self.server_protocol.rsa.generate_keys()
         self.server_protocol.send_public_rsa_key(self.socket, 'no id', 'Server')
 
-        sender, target, encrypted_key = self.server_protocol.receive_aes_message(self.socket)
-        aes_key = self.server_protocol.decrypt_aes_key(encrypted_key)
+        aes_dict = self.server_protocol.receive_aes_message(self.socket)
+        aes_key = self.server_protocol.decrypt_aes_key(aes_dict['data'])
         self.server_protocol.aes.set_key(aes_key)
         logger.info("Received and set AES key for server communication")
 
@@ -150,7 +151,7 @@ class Client:
 
     def sender_thread(self):
         logger.info("Sender thread started")
-        while True:
+        while not self.disconnected:
             self.lock.acquire('B')
             try:
                 message = self.send_queue.get(timeout=1)
@@ -169,7 +170,7 @@ class Client:
 
     def receiver_thread(self):
         logger.info("Receiver thread started")
-        while True:
+        while not self.disconnected:
             try:
                 message_dict = self.server_protocol.receive_message(self.socket)
                 if message_dict is None:
@@ -201,8 +202,9 @@ class Client:
 
         for i in range(amount):
             temp_protocol = Protocol(logger)
-            sender, target, encrypted_key = self.server_protocol.receive_aes_message(self.socket)
-            aes_key = self.server_protocol.decrypt_aes_key(encrypted_key)
+            aes_dict = self.server_protocol.receive_aes_message(self.socket)
+            aes_key = self.server_protocol.decrypt_aes_key(aes_dict['data'])
+            sender = aes_dict['sender']
             temp_protocol.aes.set_key(aes_key)
 
             self.protocols[sender] = temp_protocol
@@ -258,6 +260,7 @@ class Client:
     def disconnect(self):
         logger.info("Sending disconnect command to server")
         self.server_protocol.send_message(self.socket, self.id, 'Server', 'command', 'Disconnected')
+        self.disconnected = True
 
     def disconnect_response(self):
         message_dict = self.server_protocol.receive_message(self.socket)

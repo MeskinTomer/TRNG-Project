@@ -96,8 +96,8 @@ class Server:
                 data = client_protocol.decrypt_message(message_dict)
                 if message_dict['type'] == 'alert':
                     if data == 'AES key incoming':
-                        sender, target, encrypted_key = client_protocol.receive_aes_message(client_socket)
-                        self.transfer_queue.put((sender, target, encrypted_key))
+                        aes_dict = client_protocol.receive_aes_message(client_socket)
+                        self.transfer_queue.put(aes_dict)
                 elif message_dict['type'] == 'command':
                     if data == 'Disconnected':
                         self.disconnect_client(client_id)
@@ -154,7 +154,8 @@ class Server:
                 temp_protocol.send_message(temp_socket, 'Server', temp_id, 'command', 'new client')
                 temp_protocol.send_public_rsa_key(temp_socket, client_id, temp_id)
 
-                sender, target, encrypted_key = self.transfer_queue.get()
+                aes_dict = self.transfer_queue.get()
+                encrypted_key = aes_dict['data']
 
                 client_protocol.send_aes_key(client_socket, temp_id, client_id,
                                              None, True, encrypted_key)
@@ -179,6 +180,8 @@ class Server:
                 temp_protocol.send_message(temp_socket, 'Server', temp_id, 'disconnect_id', client_id)
 
         self.db.pop(client_id)
+        self.clients_usernames.pop(client_id)
+        self.clients_sockets.pop(client_id)
 
 
 if __name__ == '__main__':
