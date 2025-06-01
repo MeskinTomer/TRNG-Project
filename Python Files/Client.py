@@ -102,10 +102,10 @@ class Client:
                     password_hash = hashlib.sha256(password.encode()).hexdigest()
                     identification = f"{username} {password_hash}"
                     logger.info(f"Attempting login for user: {username}")
-                    self.server_protocol.send_message(self.socket, self.id, 'Server', 'Login', identification)
+                    self.server_protocol.send_message(self.socket, self.id, 'Server', 'login', identification)
 
                     message_dict = self.server_protocol.receive_message(self.socket)
-                    if message_dict['type'] == 'Status':
+                    if message_dict['type'] == 'status':
                         status = self.server_protocol.decrypt_message(message_dict)
                         identified = status == 'Confirmed'
                         logger.info(f"Login status for {username}: {status}")
@@ -117,10 +117,10 @@ class Client:
                     password_hash = hashlib.sha256(password.encode()).hexdigest()
                     identification = f"{username} {password_hash}"
                     logger.info(f"Attempting signup for user: {username}")
-                    self.server_protocol.send_message(self.socket, self.id, 'Server', 'Signup', identification)
+                    self.server_protocol.send_message(self.socket, self.id, 'Server', 'signup', identification)
 
                     message_dict = self.server_protocol.receive_message(self.socket)
-                    if message_dict['type'] == 'Status':
+                    if message_dict['type'] == 'status':
                         status = self.server_protocol.decrypt_message(message_dict)
                         identified = status == 'Confirmed'
                         logger.info(f"Signup status for {username}: {status}")
@@ -144,10 +144,6 @@ class Client:
         aes_key = self.server_protocol.decrypt_aes_key(aes_dict['data'])
         self.server_protocol.aes.set_key(aes_key)
         logger.info("Received and set AES key for server communication")
-
-    def broadcast_public_key(self):
-        logger.info("Enqueuing broadcast public key command")
-        self.enqueue_message(('Command', 'broadcast_public_key', None))
 
     def sender_thread(self):
         logger.info("Sender thread started")
@@ -196,8 +192,8 @@ class Client:
         self.lock.acquire('A')
 
         self.server_protocol.send_public_rsa_key(self.socket, self.id, 'Broadcast')
-        amount_dict = self.server_protocol.receive_clients_amount(self.socket)
-        amount = int(amount_dict['data'])
+        amount_dict = self.server_protocol.receive_message(self.socket)
+        amount = int(self.server_protocol.decrypt_message(amount_dict))
         logger.info(f"{amount} clients in the system; receiving their AES keys and usernames")
 
         for i in range(amount):
@@ -273,12 +269,6 @@ class Client:
         del self.protocols[disconnect_id]
         self.key_ids.remove(disconnect_id)
         self.clients_usernames.pop(disconnect_id)
-
-    def test(self):
-        t = threading.Thread(target=self.sender_thread, args=())
-        t.start()
-        self.gui.mainloop()
-        t.join()
 
 
 if __name__ == '__main__':

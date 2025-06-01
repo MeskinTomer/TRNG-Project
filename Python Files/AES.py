@@ -60,7 +60,8 @@ class AES:
         ciphertext, tag = cipher.encrypt_and_digest(plaintext.encode())
         encrypted_data = nonce + tag + ciphertext
         logger.debug(f"Encrypted plaintext of length {len(plaintext)} bytes to {len(encrypted_data)} bytes ciphertext")
-        return base64.b64encode(encrypted_data).decode()
+        encrypted_text = base64.b64encode(encrypted_data).decode()
+        return encrypted_text
 
     def decrypt(self, encrypted_text: str) -> str:
         if self.key is None:

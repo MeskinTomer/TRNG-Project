@@ -60,7 +60,7 @@ class Server:
 
         self.last_id += 1
         client_id = str(self.last_id)
-        client_protocol.send_message(client_socket, 'Server', client_id, 'Identification', client_id)
+        client_protocol.send_message(client_socket, 'Server', client_id, 'identification', client_id)
         self.db[client_id] = client_protocol
 
         with self.client_list_lock:
@@ -72,20 +72,20 @@ class Server:
         while not identified:
             message_dict = client_protocol.receive_message(client_socket)
 
-            if message_dict['type'] == 'Login':
+            if message_dict['type'] == 'login':
                 data = client_protocol.decrypt_message(message_dict)
                 username, password = data.split()
-                identified = self.check_login(username, password)
-            elif message_dict['type'] == 'Signup':
+                identified = self.usernames_passwords_db.verify(username, password)
+            elif message_dict['type'] == 'signup':
                 data = client_protocol.decrypt_message(message_dict)
                 username, password = data.split()
-                identified = self.check_signup(username, password)
+                identified = self.usernames_passwords_db.insert(username, password)
 
             if not identified:
-                client_protocol.send_message(client_socket, 'Server', client_id, 'Status', 'Invalid')
+                client_protocol.send_message(client_socket, 'Server', client_id, 'status', 'Invalid')
 
         self.usernames_passwords_db.close()
-        client_protocol.send_message(client_socket, 'Server', client_id, 'Status', 'Confirmed')
+        client_protocol.send_message(client_socket, 'Server', client_id, 'status', 'Confirmed')
         self.clients_usernames[client_id] = username
         self.new_client_operation(client_socket, client_protocol, client_id, username)
 
@@ -134,17 +134,11 @@ class Server:
         protocol.aes.generate_key("my_secure_password")
         protocol.send_aes_key(client_socket, 'Server', sender, public_key)
 
-    def check_login(self, username, password):
-        return self.usernames_passwords_db.verify(username, password)
-
-    def check_signup(self, username, password):
-        return self.usernames_passwords_db.insert(username, password)
-
     def new_client_operation(self, client_socket, client_protocol: Protocol, client_id, username):
         rsa_message_dict = client_protocol.receive_public_rsa_key(client_socket)
 
         clients_amount = len(self.clients_usernames) - 1
-        client_protocol.send_clients_amount(client_socket, 'Server', client_id, clients_amount)
+        client_protocol.send_message(client_socket, 'Server', client_id, 'clients amount', str(clients_amount))
 
         for temp_id, temp_socket in self.clients_sockets.items():
             if temp_id != client_id and temp_id in self.clients_usernames.keys():
@@ -177,7 +171,7 @@ class Server:
                 temp_protocol = self.db[temp_id]
 
                 temp_protocol.send_message(temp_socket, 'Server', temp_id, 'command', 'disconnect client')
-                temp_protocol.send_message(temp_socket, 'Server', temp_id, 'disconnect_id', client_id)
+                temp_protocol.send_message(temp_socket, 'Server', temp_id, 'disconnect id', client_id)
 
         self.db.pop(client_id)
         self.clients_usernames.pop(client_id)

@@ -37,6 +37,7 @@ class ChatApp(tk.Tk):
             self.frames[self.ChatScreen].send_callback(('Disconnect', None))
         self.destroy()
 
+
 def add_placeholder(entry, placeholder_text):
     def on_focus_in(event):
         if entry.get() == placeholder_text:

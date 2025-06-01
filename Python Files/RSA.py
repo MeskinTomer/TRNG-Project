@@ -25,7 +25,9 @@ def setup_logger(name, log_file, level=logging.DEBUG):
         logger.addHandler(handler)
     return logger
 
+
 logger = setup_logger('RSA', os.path.join(FILE_PATH_LOGS_FOLDER, 'RSA.log'))
+
 
 class RSA:
     def __init__(self, generator=None, key_size=1024):
@@ -53,7 +55,9 @@ class RSA:
         if g != 1:
             logger.error("Modular inverse does not exist for given values")
             raise ValueError("Modular inverse does not exist")
-        return x % phi
+
+        d = x % phi
+        return d
 
     def generate_keys(self):
         if not self.generator:
@@ -134,21 +138,25 @@ class RSA:
 
 if __name__ == '__main__':
     if __name__ == '__main__':
+        # prime_generator = Generator()
+        # rsa_self = RSA(prime_generator, key_size=1024)
+        # rsa_self.generate_keys()
+        # print(type(rsa_self.public_key[0]), type(rsa_self.public_key[1]))
+        # # Example 1: Sending a message to someone with their public key
+        # someone_public_key = (
+        #             rsa_self.public_key[0], rsa_self.public_key[1])  # replace with the actual public key received.
+        # message_to_send = "Secret message for someone"
+        # encrypted_message = rsa_self.encrypt(message_to_send, external_public_key=someone_public_key)
+        # print(f"Encrypted message for someone: {encrypted_message}")
+        #
+        # # Example 2: Decrypting a message encrypted with your public key
+        # message_from_someone = "Another secret message"
+        # # simulate someone encrypting with our public key.
+        # encrypted_from_someone = rsa_self.encrypt(message_from_someone,
+        #                                           external_public_key=rsa_self.public_key)
+        # decrypted_from_someone = rsa_self.decrypt(encrypted_from_someone)
+        # print(f"Decrypted message from someone: {decrypted_from_someone}")
+
         prime_generator = Generator()
         rsa_self = RSA(prime_generator, key_size=1024)
-        rsa_self.generate_keys()
-        print(type(rsa_self.public_key[0]), type(rsa_self.public_key[1]))
-        # Example 1: Sending a message to someone with their public key
-        someone_public_key = (
-                    rsa_self.public_key[0], rsa_self.public_key[1])  # replace with the actual public key received.
-        message_to_send = "Secret message for someone"
-        encrypted_message = rsa_self.encrypt(message_to_send, external_public_key=someone_public_key)
-        print(f"Encrypted message for someone: {encrypted_message}")
 
-        # Example 2: Decrypting a message encrypted with your public key
-        message_from_someone = "Another secret message"
-        # simulate someone encrypting with our public key.
-        encrypted_from_someone = rsa_self.encrypt(message_from_someone,
-                                                  external_public_key=rsa_self.public_key)
-        decrypted_from_someone = rsa_self.decrypt(encrypted_from_someone)
-        print(f"Decrypted message from someone: {decrypted_from_someone}")

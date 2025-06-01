@@ -27,9 +27,9 @@ class Protocol:
         global logger
         logger = passed_logger
         logger.info('Initializing Protocol instance')
-        gen = Generator()
-        self.aes = AES(gen)
-        self.rsa = RSA(gen)
+        generator = Generator()
+        self.aes = AES(generator)
+        self.rsa = RSA(generator)
         logger.info('Protocol instance created successfully')
 
     @staticmethod
@@ -153,11 +153,11 @@ class Protocol:
         if not message_bytes:
             raise ConnectionError("Connection closed while reading message data.")
 
-        message_dict = json.loads(message_bytes.decode())
+        aes_key_data = json.loads(message_bytes.decode())
         logger.debug(
-            f'Received AES key message | Type: {message_dict.get("type")}, Sender: {message_dict.get("sender")}, Target: {message_dict.get("target")}')
+            f'Received AES key message | Type: {aes_key_data.get("type")}, Sender: {aes_key_data.get("sender")}, Target: {aes_key_data.get("target")}')
 
-        return message_dict
+        return aes_key_data
 
     def decrypt_aes_key(self, encrypted_str):
         logger.info('Decrypting received AES key')
@@ -166,34 +166,6 @@ class Protocol:
         aes_key = base64.b64decode(aes_key_b64)
         logger.debug('AES key decrypted successfully')
         return aes_key
-
-    def send_clients_amount(self, sock: socket.socket, sender, target, num):
-        logger.info(f'Sending clients amount: {num} | Sender: {sender}, Target: {target}')
-        message_dict = self.construct_message('clients amount', sender, target, str(num))
-
-        message_bytes = json.dumps(message_dict).encode()
-        msg_len = struct.pack('>I', len(message_bytes))
-
-        sock.sendall(msg_len + message_bytes)
-        logger.debug('Clients amount sent successfully')
-
-    def receive_clients_amount(self, sock: socket.socket):
-        logger.info('Receiving clients amount')
-        raw_len = self._recv_exact(sock, 4)
-        if not raw_len:
-            raise ConnectionError("Connection closed while reading message length.")
-
-        msg_len = struct.unpack('>I', raw_len)[0]
-        if msg_len > MAX_REASONABLE_LENGTH:
-            raise ValueError(f"Message length too large: {msg_len}")
-
-        json_bytes = self._recv_exact(sock, msg_len)
-        if not json_bytes:
-            raise ConnectionError("Connection closed while reading message data.")
-
-        clients_data = json.loads(json_bytes.decode())
-        logger.debug(f'Clients amount received: {clients_data.get("data")}')
-        return clients_data
 
     def __repr__(self):
         return "<Protocol instance>"
