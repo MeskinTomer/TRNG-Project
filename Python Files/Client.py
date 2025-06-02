@@ -48,7 +48,7 @@ class Client:
 
         self.socket = None
         self.protocols = {}
-        self.key_ids = []
+        self.clients_ids = []
         self.gui = ChatApp()
         self.server_protocol = Protocol(logger)
         self.send_queue = queue.Queue()
@@ -61,10 +61,6 @@ class Client:
         self.gui.frames[self.gui.ChatScreen].set_send_callback(self.enqueue_message)
         self.gui.frames[self.gui.LoginScreen].set_send_callback(self.enqueue_message)
         self.gui.frames[self.gui.SignupScreen].set_send_callback(self.enqueue_message)
-
-    def enqueue_message(self, data):
-        logger.debug(f"Enqueuing message: {data}")
-        self.send_queue.put(data)
 
     def run(self):
         logger.info("Starting client and connecting to server...")
@@ -87,7 +83,11 @@ class Client:
         self.gui.mainloop()
 
         for thread in self.threads:
+            print(thread)
             thread.join()
+            print(thread)
+
+        self.socket.close()
 
     def start_communication(self):
         logger.info("Starting communication thread")
@@ -181,11 +181,17 @@ class Client:
                     logger.info(f"Received command: {data}")
                     if data == 'new client':
                         self.new_client_response()
+                    elif data == 'Disconnect':
+                        break
                     elif data == 'disconnect client':
                         self.disconnect_response()
             except Exception as e:
                 logger.error(f"[ReceiverThread] {e}")
                 break
+
+    def enqueue_message(self, data):
+        logger.debug(f"Enqueuing message: {data}")
+        self.send_queue.put(data)
 
     def new_client_join(self):
         logger.info("Handling new client join protocol")
@@ -204,7 +210,7 @@ class Client:
             temp_protocol.aes.set_key(aes_key)
 
             self.protocols[sender] = temp_protocol
-            self.key_ids.append(sender)
+            self.clients_ids.append(sender)
 
             message_dict = self.server_protocol.receive_message(self.socket)
             username = self.server_protocol.decrypt_message(message_dict)
@@ -226,7 +232,7 @@ class Client:
         temp_protocol = Protocol(logger)
         temp_protocol.aes.generate_key("my_secure_password")
         self.protocols[sender] = temp_protocol
-        self.key_ids.append(sender)
+        self.clients_ids.append(sender)
 
         self.server_protocol.send_message(self.socket, self.id, 'Server', 'alert', 'AES key incoming')
         temp_protocol.send_aes_key(self.socket, self.id, sender, public_key)
@@ -240,8 +246,8 @@ class Client:
         self.lock.release()
 
     def broadcast_message(self, message):
-        logger.info(f"Broadcasting message to {len(self.key_ids)} clients")
-        for target_id in self.key_ids:
+        logger.info(f"Broadcasting message to {len(self.clients_ids)} clients")
+        for target_id in self.clients_ids:
             logger.debug(f"Sending message to client ID: {target_id}")
             target_protocol = self.protocols[target_id]
             target_protocol.send_message(self.socket, self.id, target_id, 'message', message[1])
@@ -267,7 +273,7 @@ class Client:
         self.gui.after(0, lambda: self.gui.frames[ChatScreen].remove_active_user(username))
 
         del self.protocols[disconnect_id]
-        self.key_ids.remove(disconnect_id)
+        self.clients_ids.remove(disconnect_id)
         self.clients_usernames.pop(disconnect_id)
 
 

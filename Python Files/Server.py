@@ -44,8 +44,8 @@ class Server:
         self.socket = None
         self.clients_sockets = {}
         self.clients_usernames = {}
-        self.db = {}
-        self.usernames_passwords_db = None
+        self.protocols = {}
+        self.db = None
         self.client_list_lock = threading.Lock()
         self.threads = []
         self.transfer_queue = queue.Queue()
@@ -53,56 +53,6 @@ class Server:
 
         global logger
         logger = setup_logger()
-
-    def handle_client(self, client_socket):
-        client_protocol = Protocol(logger)
-        self.exchange_keys_with_client(client_socket, client_protocol)
-
-        self.last_id += 1
-        client_id = str(self.last_id)
-        client_protocol.send_message(client_socket, 'Server', client_id, 'identification', client_id)
-        self.db[client_id] = client_protocol
-
-        with self.client_list_lock:
-            self.clients_sockets[client_id] = client_socket
-
-        self.usernames_passwords_db = ClientDatabase()
-        username, password = None, None
-        identified = False
-        while not identified:
-            message_dict = client_protocol.receive_message(client_socket)
-
-            if message_dict['type'] == 'login':
-                data = client_protocol.decrypt_message(message_dict)
-                username, password = data.split()
-                identified = self.usernames_passwords_db.verify(username, password)
-            elif message_dict['type'] == 'signup':
-                data = client_protocol.decrypt_message(message_dict)
-                username, password = data.split()
-                identified = self.usernames_passwords_db.insert(username, password)
-
-            if not identified:
-                client_protocol.send_message(client_socket, 'Server', client_id, 'status', 'Invalid')
-
-        self.usernames_passwords_db.close()
-        client_protocol.send_message(client_socket, 'Server', client_id, 'status', 'Confirmed')
-        self.clients_usernames[client_id] = username
-        self.new_client_operation(client_socket, client_protocol, client_id, username)
-
-        disconnected = False
-        while not disconnected:
-            message_dict = client_protocol.receive_message(client_socket)
-            if message_dict['target'] == 'Server':
-                data = client_protocol.decrypt_message(message_dict)
-                if message_dict['type'] == 'alert':
-                    if data == 'AES key incoming':
-                        aes_dict = client_protocol.receive_aes_message(client_socket)
-                        self.transfer_queue.put(aes_dict)
-                elif message_dict['type'] == 'command':
-                    if data == 'Disconnected':
-                        self.disconnect_client(client_id)
-            elif message_dict['target'] != 'Server':
-                self.message_transfer_operation(client_id, message_dict)
 
     def run(self):
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -125,6 +75,57 @@ class Server:
                     client.close()
             self.socket.close()
 
+    def handle_client(self, client_socket):
+        client_protocol = Protocol(logger)
+        self.exchange_keys_with_client(client_socket, client_protocol)
+
+        self.last_id += 1
+        client_id = str(self.last_id)
+        client_protocol.send_message(client_socket, 'Server', client_id, 'identification', client_id)
+        self.protocols[client_id] = client_protocol
+
+        with self.client_list_lock:
+            self.clients_sockets[client_id] = client_socket
+
+        self.db = ClientDatabase()
+        username, password = None, None
+        identified = False
+        while not identified:
+            message_dict = client_protocol.receive_message(client_socket)
+
+            if message_dict['type'] == 'login':
+                data = client_protocol.decrypt_message(message_dict)
+                username, password = data.split()
+                identified = self.db.verify(username, password)
+            elif message_dict['type'] == 'signup':
+                data = client_protocol.decrypt_message(message_dict)
+                username, password = data.split()
+                identified = self.db.insert(username, password)
+
+            if not identified:
+                client_protocol.send_message(client_socket, 'Server', client_id, 'status', 'Invalid')
+
+        self.db.close()
+        client_protocol.send_message(client_socket, 'Server', client_id, 'status', 'Confirmed')
+        self.clients_usernames[client_id] = username
+        self.new_client_operation(client_socket, client_protocol, client_id, username)
+
+        disconnected = False
+        while not disconnected:
+            message_dict = client_protocol.receive_message(client_socket)
+            if message_dict['target'] == 'Server':
+                data = client_protocol.decrypt_message(message_dict)
+                if message_dict['type'] == 'alert':
+                    if data == 'AES key incoming':
+                        aes_dict = client_protocol.receive_aes_message(client_socket)
+                        self.transfer_queue.put(aes_dict)
+                elif message_dict['type'] == 'command':
+                    if data == 'Disconnected':
+                        self.disconnect_client(client_id)
+                        disconnected = True
+            elif message_dict['target'] != 'Server':
+                self.message_transfer_operation(client_id, message_dict)
+
     @staticmethod
     def exchange_keys_with_client(client_socket, protocol: Protocol):
         public_key_message = protocol.receive_public_rsa_key(client_socket)
@@ -142,7 +143,7 @@ class Server:
 
         for temp_id, temp_socket in self.clients_sockets.items():
             if temp_id != client_id and temp_id in self.clients_usernames.keys():
-                temp_protocol = self.db[temp_id]
+                temp_protocol = self.protocols[temp_id]
                 temp_protocol.rsa.set_public_key(rsa_message_dict['data'])
 
                 temp_protocol.send_message(temp_socket, 'Server', temp_id, 'command', 'new client')
@@ -159,21 +160,24 @@ class Server:
                                              'username', self.clients_usernames[temp_id])
 
     def message_transfer_operation(self, client_id, message_dict):
-        temp_protocol = self.db[message_dict['target']]
+        temp_protocol = self.protocols[message_dict['target']]
         temp_socket = self.clients_sockets[message_dict['target']]
 
         temp_protocol.send_message(temp_socket, client_id,
                                    message_dict['target'], 'message', message_dict['data'], True)
 
     def disconnect_client(self, client_id):
+        client_protocol = self.protocols[client_id]
+        client_protocol.send_message(self.clients_sockets[client_id], 'server', client_id, 'command', 'Disconnect')
+
         for temp_id, temp_socket in self.clients_sockets.items():
             if temp_id != client_id and temp_id in self.clients_usernames.keys():
-                temp_protocol = self.db[temp_id]
+                temp_protocol = self.protocols[temp_id]
 
                 temp_protocol.send_message(temp_socket, 'Server', temp_id, 'command', 'disconnect client')
                 temp_protocol.send_message(temp_socket, 'Server', temp_id, 'disconnect id', client_id)
 
-        self.db.pop(client_id)
+        self.protocols.pop(client_id)
         self.clients_usernames.pop(client_id)
         self.clients_sockets.pop(client_id)
 
