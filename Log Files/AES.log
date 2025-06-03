@@ -1,6 +1,21 @@
 INFO: AES instance created
 INFO: AES key updated successfully
 DEBUG: Decrypted ciphertext of length 33 bytes
-ciphertext
-INFO: AES instance created
-ERROR: Attempted encryption without key set
+DEBUG: Encrypted 70-byte plaintext to 102-byte ciphertext
+DEBUG: Decrypted ciphertext of length 41 bytes
+DEBUG: Decrypted ciphertext of length 33 bytes
+DEBUG: Decrypted ciphertext INFO: AES key updated successfully
+DEBUG: Decrypted ciphertext of length 36 bytes
+DEBUG: Encrypted 3-byte plaintext to 35-byte ciphertext
+DEBUG: Decrypted ciphertext of length 49 bytes
+DEBUG: Decrypted ciphertext of length 33 bytes
+DEBUG: Encrypted 12-byte plaintext to 44-byte ciphertext
+xt
+byte plaintext to 42-byte ciphertext
+DEBUG: Decrypted ciphertext of length 48 bytes
+DEBUG: Encrypted 5-byte plaintext to 37-byte ciphertext
+DEBUG: Encrypted 4-byte plaintext to 36-byte ciphertext
+DEBUG: Decrypted ciphertext of length 44 bytes
+DEBUG: Encrypted 17-byte plaintext to 49-byte ciphertext
+DEBUG: Encrypted 1-byte plaintext to 33-byte ciphertext
+DEBUG: Decrypted ciphertext of length 44 bytes
