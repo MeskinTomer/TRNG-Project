@@ -1,2 +1,3 @@
 INFO: RSA instance created
-DEBUG: Encrypted message of length 307 DEBUG: Decrypted ciphertext of length 307 digits
+DEBUG: Encrypted message of length 307 DEBUG: DINFO: RSA instance created
+h 307 digits

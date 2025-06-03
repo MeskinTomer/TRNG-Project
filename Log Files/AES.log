@@ -1,7 +1,6 @@
 INFO: AES instance created
 INFO: AES key updated successfully
 DEBUG: Decrypted ciphertext of length 33 bytes
-DEBUG: EncryDEBUG: Decrypted ciphertext of length 102 bytesDEBUG: Decrypted ciphertext of length 41 bytes
-DEBUG: Decrypted ciphertext of length 33 bytes
-DEBUG: Encrypted 12-DEBUG: Decrypted ciphertext of length DEBUG: Decrypted ciphertext of length 42 bytes
-42-byte ciphertext
+ciphertext
+INFO: AES instance created
+ERROR: Attempted encryption without key set

@@ -79,3 +79,8 @@ class ClientDatabase:
 
     def close(self):
         self.conn.close()
+
+
+if __name__ == '__main__':
+    db = ClientDatabase()
+    print(db.delete('tomer'))
