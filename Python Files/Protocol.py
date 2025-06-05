@@ -23,6 +23,9 @@ logger = None
 MAX_REASONABLE_LENGTH = 10000
 
 
+logger = logging.getLogger(__name__)
+
+
 class Protocol:
     """
     Handles encrypted communication using AES and RSA over sockets.
@@ -89,7 +92,7 @@ class Protocol:
             logger.exception(f"Failed to send message: {e}")
 
     @staticmethod
-    def _recv_exact(sock: socket.socket, n: int) -> bytes:
+    def _recv_exact(sock: socket.socket, n: int):
         """
         Receives exactly n bytes from a socket.
 
@@ -195,7 +198,8 @@ class Protocol:
                 raise ConnectionError("Connection closed while reading message data.")
 
             public_key_data = json.loads(json_bytes.decode())
-            logger.debug(f'Public RSA key received | From: {public_key_data.get("sender")} | Target: {public_key_data.get("target")}')
+            logger.debug(f'Public RSA key received | From: {public_key_data.get("sender")} | Target: '
+                         f'{public_key_data.get("target")}')
             return public_key_data
         except Exception as e:
             logger.exception(f"Failed to receive RSA public key: {e}")
@@ -252,7 +256,8 @@ class Protocol:
                 raise ConnectionError("Connection closed while reading message data.")
 
             aes_key_data = json.loads(message_bytes.decode())
-            logger.debug(f'Received AES key message | Type: {aes_key_data.get("type")}, Sender: {aes_key_data.get("sender")}, Target: {aes_key_data.get("target")}')
+            logger.debug(f'Received AES key message | Type: {aes_key_data.get("type")}, Sender: '
+                         f'{aes_key_data.get("sender")}, Target: {aes_key_data.get("target")}')
             return aes_key_data
         except Exception as e:
             logger.exception(f"Failed to receive AES key message: {e}")

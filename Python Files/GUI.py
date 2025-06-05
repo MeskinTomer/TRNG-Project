@@ -108,6 +108,26 @@ class LoginScreen(CenteredFrame):
         tk.Button(self.inner_frame, text="Return to Home", font=("Helvetica", 12),
                   command=lambda: controller.show_frame(HomeScreen)).pack(pady=(5, 10))
 
+        requirements_frame = tk.LabelFrame(self.inner_frame, text="Username & Password Requirements",
+                                           font=("Helvetica", 14, "bold"), bg="#e8f0fe", fg="#1a1a1a",
+                                           padx=10, pady=10, bd=2, relief="groove")
+        requirements_frame.pack(pady=20, fill="x")
+
+        requirements = [
+            "Username must be 3-20 characters long.",
+            "Username can include letters, numbers, -, _, and .",
+            "Password must be at least 8 characters long.",
+            "Password must include:",
+            "   • One uppercase letter",
+            "   • One lowercase letter",
+            "   • One number",
+            "   • One special character (!@#$%^&* etc.)",
+        ]
+
+        for req in requirements:
+            tk.Label(requirements_frame, text=req, anchor="w", justify="left",
+                     font=("Helvetica", 12), bg="#e8f0fe", fg="#333333").pack(fill="x", padx=5, pady=1)
+
     def get_username(self):
         value = self.username.get()
         return value if value != "Enter Username" else ""
@@ -161,6 +181,26 @@ class SignupScreen(CenteredFrame):
 
         tk.Button(self.inner_frame, text="Return to Home", font=("Helvetica", 12),
                   command=lambda: controller.show_frame(HomeScreen)).pack(pady=(5, 10))
+
+        requirements_frame = tk.LabelFrame(self.inner_frame, text="Username & Password Requirements",
+                                           font=("Helvetica", 14, "bold"), bg="#e8f0fe", fg="#1a1a1a",
+                                           padx=10, pady=10, bd=2, relief="groove")
+        requirements_frame.pack(pady=20, fill="x")
+
+        requirements = [
+            "Username must be 3-20 characters long.",
+            "Username can include letters, numbers, -, _, and .",
+            "Password must be at least 8 characters long.",
+            "Password must include:",
+            "   • One uppercase letter",
+            "   • One lowercase letter",
+            "   • One number",
+            "   • One special character (!@#$%^&* etc.)",
+        ]
+
+        for req in requirements:
+            tk.Label(requirements_frame, text=req, anchor="w", justify="left",
+                     font=("Helvetica", 12), bg="#e8f0fe", fg="#333333").pack(fill="x", padx=5, pady=1)
 
     def get_new_username(self):
         value = self.new_username.get()

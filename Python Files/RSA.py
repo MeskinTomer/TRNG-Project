@@ -20,11 +20,11 @@ def setup_logger(name, log_file, level=logging.DEBUG):
     formatter = logging.Formatter('%(levelname)s: %(message)s')
     handler.setFormatter(formatter)
 
-    logger = logging.getLogger(name)
-    logger.setLevel(level)
-    if not logger.hasHandlers():
-        logger.addHandler(handler)
-    return logger
+    temp_logger = logging.getLogger(name)
+    temp_logger.setLevel(level)
+    if not temp_logger.hasHandlers():
+        temp_logger.addHandler(handler)
+    return temp_logger
 
 
 logger = setup_logger('RSA', os.path.join(FILE_PATH_LOGS_FOLDER, 'RSA.log'))
@@ -94,11 +94,11 @@ class RSA:
             logger.info("RSA keys generated successfully")
             return self.public_key, self.private_key
 
-        except AssertionError as ae:
-            logger.exception("Assertion failed during key generation")
+        except AssertionError as e:
+            logger.exception(f"Assertion failed during key generation: {e}")
             raise
         except Exception as e:
-            logger.exception("Unexpected error during RSA key generation")
+            logger.exception(f"Unexpected error during RSA key generation: {e}")
             raise
 
     def set_public_key(self, public_key):
@@ -130,11 +130,11 @@ class RSA:
             logger.debug(f'Encrypted message of length {len(str(cipher_int))} digits')
             return cipher_int
 
-        except AssertionError as ae:
-            logger.exception("Assertion failed during encryption")
+        except AssertionError as e:
+            logger.exception(f"Assertion failed during encryption: {e}")
             raise
         except Exception as e:
-            logger.exception("Unexpected error during encryption")
+            logger.exception(f"Unexpected error during encryption: {e}")
             raise
 
     def decrypt(self, ciphertext):
@@ -151,11 +151,11 @@ class RSA:
             logger.debug(f'Decrypted ciphertext of length {len(str(ciphertext))} digits')
             return message
 
-        except AssertionError as ae:
-            logger.exception("Assertion failed during decryption")
+        except AssertionError as e:
+            logger.exception(f"Assertion failed during decryption: {e}")
             raise
         except Exception as e:
-            logger.exception("Unexpected error during decryption")
+            logger.exception(f"Unexpected error during decryption: {e}")
             raise
 
     def sign(self, message):
@@ -171,11 +171,11 @@ class RSA:
             logger.info('Message signed successfully')
             return signature
 
-        except AssertionError as ae:
-            logger.exception("Assertion failed during signing")
+        except AssertionError as e:
+            logger.exception(f"Assertion failed during signing: {e}")
             raise
         except Exception as e:
-            logger.exception("Unexpected error during signing")
+            logger.exception(f"Unexpected error during signing: {e}")
             raise
 
     def verify(self, message, signature, external_public_key=None):
@@ -195,11 +195,11 @@ class RSA:
             logger.info(f'Signature verification result: {verified}')
             return verified
 
-        except AssertionError as ae:
-            logger.exception("Assertion failed during verification")
+        except AssertionError as e:
+            logger.exception(f"Assertion failed during verification: {e}")
             raise
         except Exception as e:
-            logger.exception("Unexpected error during signature verification")
+            logger.exception(f"Unexpected error during signature verification: {e}")
             raise
 
 

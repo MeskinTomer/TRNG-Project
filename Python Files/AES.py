@@ -3,7 +3,7 @@ Author: Tomer Meskin
 Date: 23/03/2025
 
 Description:
-AES encryption and decryption class using the PyCryptodome library.
+AES encryption and decryption class using the PyCrypto dome library.
 Includes key generation via PBKDF2, manual key setting, and support for
 GCM mode with nonce and authentication tag. Uses custom randomness
 source for nonce generation.
@@ -21,20 +21,23 @@ from Generator import Generator
 # Path to log directory
 FILE_PATH_LOGS_FOLDER = os.path.join(os.path.dirname(__file__), '..', 'Log Files')
 
+
 def setup_logger(name, log_file, level=logging.DEBUG):
     """Initializes and returns a logger with the given name and file path."""
     handler = logging.FileHandler(log_file, mode='w')
     formatter = logging.Formatter('%(levelname)s: %(message)s')
     handler.setFormatter(formatter)
 
-    logger = logging.getLogger(name)
-    logger.setLevel(level)
-    if not logger.hasHandlers():
-        logger.addHandler(handler)
-    return logger
+    temp_logger = logging.getLogger(name)
+    temp_logger.setLevel(level)
+    if not temp_logger.hasHandlers():
+        temp_logger.addHandler(handler)
+    return temp_logger
+
 
 # Set up logger for AES operations
 logger = setup_logger('AES', os.path.join(FILE_PATH_LOGS_FOLDER, 'AES.log'))
+
 
 class AES:
     def __init__(self, generator: Generator, key: bytes = None):
@@ -63,7 +66,7 @@ class AES:
             logger.exception("Invalid key provided to set_key()")
             raise ValueError(str(ae))
         except Exception as e:
-            logger.exception("Unexpected error in set_key()")
+            logger.exception(f"Unexpected error in set_key(): {e}")
             raise
 
     def generate_key(self, password: str, salt: bytes = None) -> tuple:
@@ -88,7 +91,7 @@ class AES:
             logger.exception("Assertion failed during key generation")
             raise ValueError(str(ae))
         except Exception as e:
-            logger.exception("Unexpected error in generate_key()")
+            logger.exception(f"Unexpected error in generate_key(): {e}")
             raise
 
     def encrypt(self, plaintext: str) -> str:
@@ -121,7 +124,7 @@ class AES:
             logger.exception("Assertion failed during encryption")
             raise ValueError(str(ae))
         except Exception as e:
-            logger.exception("Unexpected error during encryption")
+            logger.exception(f"Unexpected error during encryption: {e}")
             raise
 
     def decrypt(self, encrypted_text: str) -> str:
@@ -151,11 +154,11 @@ class AES:
         except AssertionError as ae:
             logger.exception("Assertion failed during decryption")
             raise ValueError(str(ae))
-        except (ValueError, KeyError) as e:
+        except (ValueError, KeyError):
             logger.exception("Decryption failed: possible tampering or wrong key")
             raise ValueError("Decryption failed: invalid key or corrupted data.")
         except Exception as e:
-            logger.exception("Unexpected error during decryption")
+            logger.exception(f"Unexpected error during decryption: {e}")
             raise
 
 
@@ -165,8 +168,8 @@ if __name__ == '__main__':
     aes = AES(rng)
 
     # Generate a key from a password
-    key, salt = aes.generate_key("my_secure_password")
-    print(f"Key type: {type(key)}")
+    temp_key, temp_salt = aes.generate_key("my_secure_password")
+    print(f"Key type: {type(temp_key)}")
 
     # Encrypt a message
     encrypted_message = aes.encrypt("Hello, this is a secret!")
@@ -177,8 +180,8 @@ if __name__ == '__main__':
     print("Decrypted:", decrypted_message)
 
     # Manually set a new 256-bit key
-    new_key = rng.generate_int(256).to_bytes(32, 'big')
-    aes.set_key(new_key)
+    new_temp_key = rng.generate_int(256).to_bytes(32, 'big')
+    aes.set_key(new_temp_key)
 
     # Encrypt again with the new key
     new_encrypted = aes.encrypt("New message with new key!")
